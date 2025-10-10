@@ -791,12 +791,25 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
         }
 
         function resetSimulation() {
+            // Check if simulation was running
+            const indicator = document.getElementById('status-indicator');
+            const wasRunning = indicator.classList.contains('running');
+
             fetch('/api/reset', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    updateStatusIndicator(false);
                     addUARTMessage('[SYSTEM] Simulation reset');
                     clearSerial();
+                    refreshPins();
+
+                    // Restart if it was running
+                    if (wasRunning) {
+                        setTimeout(() => {
+                            startSimulation();
+                        }, 100);
+                    } else {
+                        updateStatusIndicator(false);
+                    }
                 });
         }
 
