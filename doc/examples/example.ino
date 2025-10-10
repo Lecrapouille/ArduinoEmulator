@@ -1,5 +1,3 @@
-#include <ArduinoEmulator/ArduinoEmulator.hpp>
-
 void setup()
 {
     Serial.begin(9600);

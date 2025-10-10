@@ -13,9 +13,12 @@ TARGET_DESCRIPTION := An emulator for Arduino for testing your Arduino code.
 include $(M)/project/Makefile
 
 ###############################################################################
-# Inform Makefile where to find header files
+# Inform Makefile where to find third-party header files
 #
 INCLUDES += $(P)/include $(P)/src
+INCLUDES += $(THIRD_PARTIES_DIR)
+INCLUDES += $(THIRD_PARTIES_DIR)/json/include
+INCLUDES += $(THIRD_PARTIES_DIR)/cxxopts/include
 
 ###############################################################################
 # Inform Makefile where to find *.cpp files
@@ -33,9 +36,8 @@ DEFINES +=
 SRC_FILES := $(wildcard $(P)/src/*.cpp)
 
 ###############################################################################
-# Set units library
+# Set third-party library flags
 #
-INCLUDES += $(THIRD_PARTIES_DIR) $(THIRD_PARTIES_DIR)/json/include
 USER_CXXFLAGS += -Wno-old-style-cast -Wno-noexcept -Wno-useless-cast
 USER_CXXFLAGS += -Wno-switch-enum -Wno-float-equal
 
