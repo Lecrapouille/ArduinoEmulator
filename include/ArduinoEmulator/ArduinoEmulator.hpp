@@ -1,0 +1,877 @@
+/**
+ * @file ArduinoEmulator.hpp
+ * @brief Arduino hardware emulator for testing Arduino sketches without
+ * physical hardware
+ * @author Lecrapouille
+ * @copyright MIT License
+ *
+ * This header-only library provides a complete Arduino hardware emulation
+ * environment that allows you to test Arduino code on a PC with a web-based
+ * interface.
+ */
+
+#pragma once
+
+#include <chrono>
+#include <functional>
+#include <map>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
+#include <vector>
+
+// Arduino definitions
+#define HIGH 1         ///< Digital HIGH state (1)
+#define LOW 0          ///< Digital LOW state (0)
+#define INPUT 0        ///< Pin configured as input
+#define OUTPUT 1       ///< Pin configured as output
+#define INPUT_PULLUP 2 ///< Pin configured as input with pull-up resistor
+
+/**
+ * @class Pin
+ * @brief Simulates an Arduino digital/analog pin
+ *
+ * This class emulates the behavior of an Arduino pin, supporting:
+ * - Digital read/write operations
+ * - Analog read/write operations (ADC/PWM)
+ * - Pin mode configuration (INPUT, OUTPUT, INPUT_PULLUP)
+ * - PWM capability for specific pins
+ */
+class Pin
+{
+public:
+
+    /**
+     * @brief Write a digital value to the pin
+     * @param p_val Value to write (HIGH or LOW)
+     *
+     * Only works if the pin is configured as OUTPUT.
+     */
+    void digitalWrite(int p_val)
+    {
+        if (mode == OUTPUT)
+        {
+            value = p_val;
+        }
+    }
+
+    /**
+     * @brief Read the digital value from the pin
+     * @return Current pin value (HIGH or LOW)
+     */
+    int digitalRead() const
+    {
+        return value;
+    }
+
+    /**
+     * @brief Write a PWM value to the pin
+     * @param p_val PWM value (0-255)
+     *
+     * Only works if the pin is PWM-capable and configured as OUTPUT.
+     * The digital value is set to HIGH if p_val > 127, otherwise LOW.
+     */
+    void analogWrite(int p_val)
+    {
+        if (pwm_capable && mode == OUTPUT)
+        {
+            pwm_value = p_val;
+            value = (p_val > 127) ? HIGH : LOW;
+        }
+    }
+
+    /**
+     * @brief Read an analog value from the pin
+     * @return Analog value (0-1023)
+     *
+     * Simple simulation: returns value * 1023
+     */
+    int analogRead() const
+    {
+        return value * 1023;
+    }
+
+public:
+
+    int value = LOW;  ///< Current digital value of the pin
+    int mode = INPUT; ///< Current mode of the pin (INPUT/OUTPUT/INPUT_PULLUP)
+    bool pwm_capable = false; ///< True if the pin supports PWM
+    int pwm_value = 0;        ///< Current PWM value (0-255)
+    std::function<void(int)> callback =
+        nullptr; ///< Callback function for pin events
+};
+
+/**
+ * @class SPIEmulator
+ * @brief Simulates the Arduino SPI (Serial Peripheral Interface) bus
+ *
+ * This class emulates SPI communication, storing transferred bytes in a buffer.
+ * Useful for testing SPI-based devices like sensors, displays, and SD cards.
+ */
+class SPIEmulator
+{
+public:
+
+    /**
+     * @brief Initialize the SPI bus
+     *
+     * Enables the SPI and clears the internal buffer.
+     */
+    void begin()
+    {
+        m_enabled = true;
+        m_buffer.clear();
+    }
+
+    /**
+     * @brief Disable the SPI bus
+     */
+    void end()
+    {
+        m_enabled = false;
+    }
+
+    /**
+     * @brief Transfer a byte over SPI
+     * @param p_data Byte to send
+     * @return Received byte (in simulation, returns the last byte sent)
+     *
+     * Simple simulation: stores the byte in a buffer and returns the last byte.
+     */
+    uint8_t transfer(uint8_t p_data)
+    {
+        if (!m_enabled)
+            return 0;
+        m_buffer.push_back(p_data);
+        return m_buffer.empty() ? 0 : m_buffer.back();
+    }
+
+    /**
+     * @brief Get the SPI transfer buffer
+     * @return Vector containing all transferred bytes
+     */
+    std::vector<uint8_t> getBuffer() const
+    {
+        return m_buffer;
+    }
+
+private:
+
+    std::vector<uint8_t> m_buffer; ///< Buffer storing transferred bytes
+    bool m_enabled = false;        ///< SPI enabled state
+};
+
+/**
+ * @class SerialEmulator
+ * @brief Simulates the Arduino Serial (UART) communication
+ *
+ * This class emulates serial communication with separate input and output
+ * buffers. Thread-safe implementation using mutexes for concurrent access.
+ * Supports standard Arduino Serial methods: begin, print, println, read,
+ * available.
+ */
+class SerialEmulator
+{
+public:
+
+    /**
+     * @brief Initialize the serial communication
+     * @param p_baud_rate Baud rate (stored for compatibility, not used in
+     * simulation)
+     *
+     * Enables serial communication and clears both input and output buffers.
+     */
+    void begin(int /*p_baud_rate*/)
+    {
+        m_enabled = true;
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        while (!m_input_buffer.empty())
+            m_input_buffer.pop();
+        while (!m_output_buffer.empty())
+            m_output_buffer.pop();
+    }
+
+    /**
+     * @brief Print a string to serial output
+     * @param p_str Null-terminated string to print
+     *
+     * Adds the string to the output buffer without a newline.
+     */
+    void print(const char* p_str)
+    {
+        if (!m_enabled)
+            return;
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        for (int i = 0; p_str[i] != '\0'; i++)
+        {
+            m_output_buffer.push(p_str[i]);
+        }
+    }
+
+    /**
+     * @brief Print a string to serial output with newline
+     * @param p_str Null-terminated string to print
+     *
+     * Adds the string to the output buffer followed by a newline character.
+     */
+    void println(const char* p_str)
+    {
+        print(p_str);
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        m_output_buffer.push('\n');
+    }
+
+    /**
+     * @brief Check if data is available to read
+     * @return Number of bytes available in the input buffer
+     */
+    int available()
+    {
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        return int(m_input_buffer.size());
+    }
+
+    /**
+     * @brief Read a byte from the input buffer
+     * @return The byte read, or -1 if buffer is empty
+     */
+    char read()
+    {
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        if (m_input_buffer.empty())
+            return -1;
+        char c = m_input_buffer.front();
+        m_input_buffer.pop();
+        return c;
+    }
+
+    /**
+     * @brief Add data to the input buffer (for simulation)
+     * @param p_input String to add to the input buffer
+     *
+     * This method is used by the web interface to simulate incoming serial
+     * data.
+     */
+    void addInput(const std::string& p_input)
+    {
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        for (char c : p_input)
+        {
+            m_input_buffer.push(c);
+        }
+    }
+
+    /**
+     * @brief Get and clear the output buffer
+     * @return String containing all output data
+     *
+     * This method is used by the web interface to retrieve serial output.
+     * The output buffer is cleared after reading.
+     */
+    std::string getOutput()
+    {
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        std::string result;
+        while (!m_output_buffer.empty())
+        {
+            result += m_output_buffer.front();
+            m_output_buffer.pop();
+        }
+        return result;
+    }
+
+private:
+
+    std::queue<char> m_input_buffer;  ///< Buffer for incoming serial data
+    std::queue<char> m_output_buffer; ///< Buffer for outgoing serial data
+    std::mutex m_buffer_mutex;        ///< Mutex for thread-safe buffer access
+    bool m_enabled = false;           ///< Serial enabled state
+};
+
+/**
+ * @class TimerEmulator
+ * @brief Simulates Arduino timing functions
+ *
+ * This class provides time tracking and callback scheduling functionality,
+ * emulating Arduino's millis(), micros(), and delay() functions.
+ * Also supports periodic callbacks similar to timer interrupts.
+ */
+class TimerEmulator
+{
+public:
+
+    /**
+     * @brief Start the timer
+     *
+     * Initializes the timer's start time and begins counting.
+     */
+    void start()
+    {
+        m_start_time = std::chrono::steady_clock::now();
+        m_running = true;
+    }
+
+    /**
+     * @brief Stop the timer
+     */
+    void stop()
+    {
+        m_running = false;
+    }
+
+    /**
+     * @brief Get elapsed time in milliseconds
+     * @return Milliseconds since timer start
+     *
+     * Emulates Arduino's millis() function.
+     */
+    long millis() const
+    {
+        if (!m_running)
+            return 0;
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - m_start_time);
+        return duration.count();
+    }
+
+    /**
+     * @brief Get elapsed time in microseconds
+     * @return Microseconds since timer start
+     *
+     * Emulates Arduino's micros() function.
+     */
+    long micros() const
+    {
+        if (!m_running)
+            return 0;
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            now - m_start_time);
+        return duration.count();
+    }
+
+    /**
+     * @brief Delay execution for specified milliseconds
+     * @param p_ms Milliseconds to delay
+     *
+     * Emulates Arduino's delay() function.
+     */
+    void delay(long p_ms) const
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(p_ms));
+    }
+
+    /**
+     * @brief Add a periodic callback
+     * @param p_callback Function to call periodically
+     * @param p_interval_ms Interval in milliseconds
+     *
+     * Registers a callback function to be called at regular intervals.
+     * Similar to timer interrupts on real Arduino.
+     */
+    void addCallback(std::function<void()> const& p_callback, int p_interval_ms)
+    {
+        m_callbacks.push_back(p_callback);
+        m_intervals.push_back(p_interval_ms);
+        m_last_trigger.push_back(std::chrono::steady_clock::now());
+    }
+
+    /**
+     * @brief Update and trigger callbacks
+     *
+     * Checks all registered callbacks and executes those whose interval has
+     * elapsed. Should be called regularly from the simulation loop.
+     */
+    void updateCallbacks()
+    {
+        if (!m_running)
+            return;
+        auto now = std::chrono::steady_clock::now();
+
+        for (size_t i = 0; i < m_callbacks.size(); i++)
+        {
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - m_last_trigger[i]);
+            if (elapsed.count() >= m_intervals[i])
+            {
+                m_callbacks[i]();
+                m_last_trigger[i] = now;
+            }
+        }
+    }
+
+private:
+
+    std::chrono::steady_clock::time_point m_start_time; ///< Timer start time
+    bool m_running = false;                             ///< Timer running state
+    std::vector<std::function<void()>>
+        m_callbacks;              ///< Registered callback functions
+    std::vector<int> m_intervals; ///< Callback intervals in milliseconds
+    std::vector<std::chrono::steady_clock::time_point>
+        m_last_trigger; ///< Last trigger time for each callback
+};
+
+/**
+ * @class ArduinoEmulator
+ * @brief Main Arduino hardware emulator class
+ *
+ * This is the core class that brings together all emulation components:
+ * - Digital and analog pins
+ * - Serial (UART) communication
+ * - SPI bus
+ * - Timer and timing functions
+ *
+ * The emulator runs in a separate thread and provides a complete
+ * Arduino-compatible interface for testing sketches without physical hardware.
+ *
+ * @note This emulator simulates an Arduino Uno with 20 pins (0-19)
+ * @note PWM is available on pins 3, 5, 6, 9, 10, 11
+ */
+class ArduinoEmulator
+{
+public:
+
+    /**
+     * @brief Constructor
+     *
+     * Initializes all pins with default configuration.
+     * Pins are configured as INPUT by default, with specific pins marked as
+     * PWM-capable.
+     */
+    ArduinoEmulator()
+    {
+        initializePins();
+    }
+
+    /**
+     * @brief Destructor
+     *
+     * Ensures the simulation thread is properly stopped before destruction.
+     */
+    ~ArduinoEmulator()
+    {
+        stop();
+    }
+
+    /**
+     * @brief Start the Arduino emulator
+     *
+     * Starts the timer and launches the simulation thread.
+     * The simulation loop runs continuously until stop() is called.
+     */
+    void start()
+    {
+        running = true;
+        timer.start();
+        simulation_thread = std::thread(&ArduinoEmulator::simulationLoop, this);
+    }
+
+    /**
+     * @brief Stop the Arduino emulator
+     *
+     * Stops the simulation thread and waits for it to complete.
+     */
+    void stop()
+    {
+        running = false;
+        if (simulation_thread.joinable())
+        {
+            simulation_thread.join();
+        }
+    }
+
+    /**
+     * @brief Configure a pin's mode
+     * @param p_pin Pin number (0-19)
+     * @param p_mode Pin mode (INPUT, OUTPUT, or INPUT_PULLUP)
+     *
+     * Emulates Arduino's pinMode() function.
+     */
+    void pinMode(int p_pin, int p_mode)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].mode = p_mode;
+        }
+    }
+
+    /**
+     * @brief Write a digital value to a pin
+     * @param p_pin Pin number (0-19)
+     * @param p_value Value to write (HIGH or LOW)
+     *
+     * Emulates Arduino's digitalWrite() function.
+     */
+    void digitalWrite(int p_pin, int p_value)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].digitalWrite(p_value);
+        }
+    }
+
+    /**
+     * @brief Read a digital value from a pin
+     * @param p_pin Pin number (0-19)
+     * @return Current pin value (HIGH or LOW)
+     *
+     * Emulates Arduino's digitalRead() function.
+     */
+    int digitalRead(int p_pin)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            return pins[p_pin].digitalRead();
+        }
+        return LOW;
+    }
+
+    /**
+     * @brief Write an analog (PWM) value to a pin
+     * @param p_pin Pin number (must be PWM-capable: 3, 5, 6, 9, 10, 11)
+     * @param p_value PWM value (0-255)
+     *
+     * Emulates Arduino's analogWrite() function.
+     */
+    void analogWrite(int p_pin, int p_value)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].analogWrite(p_value);
+        }
+    }
+
+    /**
+     * @brief Read an analog value from a pin
+     * @param p_pin Pin number (0-19)
+     * @return Analog value (0-1023)
+     *
+     * Emulates Arduino's analogRead() function.
+     */
+    int analogRead(int p_pin)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            return pins[p_pin].analogRead();
+        }
+        return 0;
+    }
+
+    /**
+     * @brief Get access to the SPI emulator
+     * @return Reference to the SPI emulator instance
+     */
+    SPIEmulator& getSPI()
+    {
+        return spi;
+    }
+
+    /**
+     * @brief Get access to the Serial emulator
+     * @return Reference to the Serial emulator instance
+     */
+    SerialEmulator& getSerial()
+    {
+        return serial;
+    }
+
+    /**
+     * @brief Get access to the Timer emulator
+     * @return Reference to the Timer emulator instance
+     */
+    TimerEmulator& getTimer()
+    {
+        return timer;
+    }
+
+    /**
+     * @brief Get access to a specific pin (for web API)
+     * @param p_pin Pin number (0-19)
+     * @return Pointer to the Pin object, or nullptr if invalid
+     *
+     * Used by the web interface to read pin states.
+     */
+    Pin* getPin(int p_pin)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            return &pins[p_pin];
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Force a pin's value (for simulating external inputs)
+     * @param p_pin Pin number (0-19)
+     * @param p_value Value to set (HIGH or LOW)
+     *
+     * Used by the web interface to simulate external inputs like button presses
+     * or sensor readings. Bypasses the normal pinMode restrictions.
+     */
+    void forcePinValue(int p_pin, int p_value)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].value = p_value;
+        }
+    }
+
+private:
+
+    /**
+     * @brief Initialize all pins
+     *
+     * Creates 20 pins (Arduino Uno standard) and marks pins 3, 5, 6, 9, 10, 11
+     * as PWM-capable.
+     */
+    void initializePins()
+    {
+        // Initialize Arduino Uno pins
+        for (int i = 0; i < 20; i++)
+        {
+            pins[i] = Pin();
+        }
+        // PWM-capable pins
+        pins[3].pwm_capable = true;
+        pins[5].pwm_capable = true;
+        pins[6].pwm_capable = true;
+        pins[9].pwm_capable = true;
+        pins[10].pwm_capable = true;
+        pins[11].pwm_capable = true;
+    }
+
+    /**
+     * @brief Simulation loop (runs in separate thread)
+     *
+     * Continuously updates timer callbacks while the simulation is running.
+     * Runs at approximately 1000 Hz (1ms sleep).
+     */
+    void simulationLoop()
+    {
+        while (running)
+        {
+            timer.updateCallbacks();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+
+private:
+
+    std::map<int, Pin> pins;       ///< Map of all pins (0-19)
+    SPIEmulator spi;               ///< SPI bus emulator
+    SerialEmulator serial;         ///< Serial (UART) emulator
+    TimerEmulator timer;           ///< Timer emulator
+    bool running = false;          ///< Simulation running state
+    std::thread simulation_thread; ///< Simulation thread
+};
+
+/// Global instance for Arduino compatibility
+inline ArduinoEmulator arduino_sim;
+
+/**
+ * @defgroup GlobalFunctions Global Arduino Functions
+ * @brief Arduino-compatible global functions
+ *
+ * These functions provide Arduino-style global interface to the emulator.
+ * @{
+ */
+
+/**
+ * @brief Configure a pin's mode
+ * @param p_pin Pin number
+ * @param p_mode Pin mode (INPUT, OUTPUT, or INPUT_PULLUP)
+ */
+inline void pinMode(int p_pin, int p_mode)
+{
+    arduino_sim.pinMode(p_pin, p_mode);
+}
+
+/**
+ * @brief Write a digital value to a pin
+ * @param p_pin Pin number
+ * @param p_value Value to write (HIGH or LOW)
+ */
+inline void digitalWrite(int p_pin, int p_value)
+{
+    arduino_sim.digitalWrite(p_pin, p_value);
+}
+
+/**
+ * @brief Read a digital value from a pin
+ * @param p_pin Pin number
+ * @return Current pin value (HIGH or LOW)
+ */
+inline int digitalRead(int p_pin)
+{
+    return arduino_sim.digitalRead(p_pin);
+}
+
+/**
+ * @brief Write an analog (PWM) value to a pin
+ * @param p_pin Pin number
+ * @param p_value PWM value (0-255)
+ */
+inline void analogWrite(int p_pin, int p_value)
+{
+    arduino_sim.analogWrite(p_pin, p_value);
+}
+
+/**
+ * @brief Read an analog value from a pin
+ * @param p_pin Pin number
+ * @return Analog value (0-1023)
+ */
+inline int analogRead(int p_pin)
+{
+    return arduino_sim.analogRead(p_pin);
+}
+
+/**
+ * @brief Get elapsed time in milliseconds
+ * @return Milliseconds since program start
+ */
+inline long millis()
+{
+    return arduino_sim.getTimer().millis();
+}
+
+/**
+ * @brief Get elapsed time in microseconds
+ * @return Microseconds since program start
+ */
+inline long micros()
+{
+    return arduino_sim.getTimer().micros();
+}
+
+/**
+ * @brief Delay execution for specified milliseconds
+ * @param p_ms Milliseconds to delay
+ */
+inline void delay(long p_ms)
+{
+    arduino_sim.getTimer().delay(p_ms);
+}
+
+/** @} */ // end of GlobalFunctions
+
+/**
+ * @class SerialClass
+ * @brief Arduino-compatible Serial communication class
+ *
+ * Provides the standard Arduino Serial interface for communication.
+ * This is a global object accessed as 'Serial' in Arduino code.
+ */
+class SerialClass
+{
+public:
+
+    /**
+     * @brief Initialize serial communication
+     * @param p_baud_rate Baud rate (for compatibility, not enforced in
+     * simulation)
+     */
+    void begin(int p_baud_rate) const
+    {
+        arduino_sim.getSerial().begin(p_baud_rate);
+    }
+
+    /**
+     * @brief Print a string without newline
+     * @param p_str Null-terminated string to print
+     */
+    void print(const char* p_str) const
+    {
+        arduino_sim.getSerial().print(p_str);
+    }
+
+    /**
+     * @brief Print a string with newline
+     * @param p_str Null-terminated string to print
+     */
+    void println(const char* p_str) const
+    {
+        arduino_sim.getSerial().println(p_str);
+    }
+
+    /**
+     * @brief Check if data is available
+     * @return Number of bytes available
+     */
+    int available() const
+    {
+        return arduino_sim.getSerial().available();
+    }
+
+    /**
+     * @brief Read a byte from serial
+     * @return Byte read, or -1 if none available
+     */
+    char read() const
+    {
+        return arduino_sim.getSerial().read();
+    }
+};
+
+/// Global Serial object (Arduino-compatible)
+inline SerialClass Serial;
+
+/**
+ * @class SPIClass
+ * @brief Arduino-compatible SPI communication class
+ *
+ * Provides the standard Arduino SPI interface for SPI bus communication.
+ * This is a global object accessed as 'SPI' in Arduino code.
+ */
+class SPIClass
+{
+public:
+
+    /**
+     * @brief Initialize SPI bus
+     */
+    void begin() const
+    {
+        arduino_sim.getSPI().begin();
+    }
+
+    /**
+     * @brief Disable SPI bus
+     */
+    void end() const
+    {
+        arduino_sim.getSPI().end();
+    }
+
+    /**
+     * @brief Transfer a byte over SPI
+     * @param p_data Byte to send
+     * @return Byte received
+     */
+    uint8_t transfer(uint8_t p_data) const
+    {
+        return arduino_sim.getSPI().transfer(p_data);
+    }
+};
+
+/// Global SPI object (Arduino-compatible)
+inline SPIClass SPI;
+
+/**
+ * @brief Arduino setup function (to be defined by user)
+ *
+ * This function is called once when the program starts.
+ * Define this function in your Arduino sketch.
+ */
+void setup();
+
+/**
+ * @brief Arduino loop function (to be defined by user)
+ *
+ * This function is called repeatedly after setup().
+ * Define this function in your Arduino sketch.
+ */
+void loop();
