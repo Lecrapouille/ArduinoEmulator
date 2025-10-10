@@ -24,11 +24,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
         .container {
             max-width: 1600px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
         h1 {
@@ -79,11 +75,6 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease;
-        }
-
-        .panel:hover {
-            transform: translateY(-5px);
         }
 
         .panel h2 {
