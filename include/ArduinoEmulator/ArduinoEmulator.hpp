@@ -12,7 +12,11 @@
 
 #pragma once
 
+#include <cctype>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -27,6 +31,29 @@
 #define INPUT 0        ///< Pin configured as input
 #define OUTPUT 1       ///< Pin configured as output
 #define INPUT_PULLUP 2 ///< Pin configured as input with pull-up resistor
+
+// Interrupt modes
+#define CHANGE 1  ///< Interrupt on any change
+#define RISING 2  ///< Interrupt on rising edge
+#define FALLING 3 ///< Interrupt on falling edge
+
+// Analog reference types
+#define DEFAULT 0  ///< Default analog reference
+#define INTERNAL 1 ///< Internal analog reference
+#define EXTERNAL 2 ///< External analog reference
+
+// Type definitions
+typedef bool boolean;
+typedef uint8_t byte;
+
+// Analog pin definitions (Arduino Uno style)
+// Using constexpr to avoid macro conflicts with JSON nlohmann library
+constexpr int A0 = 14; ///< Analog pin 0
+constexpr int A1 = 15; ///< Analog pin 1
+constexpr int A2 = 16; ///< Analog pin 2
+constexpr int A3 = 17; ///< Analog pin 3
+constexpr int A4 = 18; ///< Analog pin 4
+constexpr int A5 = 19; ///< Analog pin 5
 
 /**
  * @class Pin
@@ -83,13 +110,13 @@ public:
 
     /**
      * @brief Read an analog value from the pin
-     * @return Analog value (0-1023)
+     * @return Analog value (0-1023 by default, or based on resolution)
      *
-     * Simple simulation: returns value * 1023
+     * Returns the stored analog value for analog pins.
      */
     int analogRead() const
     {
-        return value * 1023;
+        return analog_value;
     }
 
 public:
@@ -98,8 +125,10 @@ public:
     int mode = INPUT; ///< Current mode of the pin (INPUT/OUTPUT/INPUT_PULLUP)
     bool pwm_capable = false; ///< True if the pin supports PWM
     int pwm_value = 0;        ///< Current PWM value (0-255)
-    std::function<void(int)> callback =
-        nullptr; ///< Callback function for pin events
+    int analog_value = 0;     ///< Analog read value (0-1023 by default)
+    std::function<void()> interrupt_callback = nullptr; ///< Interrupt callback
+    int interrupt_mode = 0; ///< Interrupt mode (CHANGE, RISING, FALLING)
+    int last_value = LOW;   ///< Last value for interrupt detection
 };
 
 /**
@@ -218,6 +247,17 @@ public:
     void println(const char* p_str)
     {
         print(p_str);
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        m_output_buffer.push('\n');
+    }
+
+    /**
+     * @brief Print just a newline
+     */
+    void println()
+    {
+        if (!m_enabled)
+            return;
         std::lock_guard<std::mutex> lock(m_buffer_mutex);
         m_output_buffer.push('\n');
     }
@@ -510,6 +550,7 @@ public:
         if (pins.find(p_pin) != pins.end())
         {
             pins[p_pin].digitalWrite(p_value);
+            checkInterrupt(p_pin);
         }
     }
 
@@ -616,6 +657,122 @@ public:
         if (pins.find(p_pin) != pins.end())
         {
             pins[p_pin].value = p_value;
+            checkInterrupt(p_pin);
+        }
+    }
+
+    /**
+     * @brief Set a pin's analog value (for simulating analog inputs)
+     * @param p_pin Pin number (0-19)
+     * @param p_analog_value Analog value to set (0-1023)
+     *
+     * Used by the web interface to simulate analog sensor readings.
+     */
+    void setAnalogValue(int p_pin, int p_analog_value)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].analog_value = p_analog_value;
+            // Also update digital value based on threshold
+            pins[p_pin].value = (p_analog_value > 512) ? HIGH : LOW;
+        }
+    }
+
+    /**
+     * @brief Set the analog read resolution
+     * @param p_resolution Resolution in bits (1-32)
+     */
+    void setAnalogReadResolution(int p_resolution)
+    {
+        analog_read_resolution = p_resolution;
+    }
+
+    /**
+     * @brief Set the analog write resolution
+     * @param p_resolution Resolution in bits (1-32)
+     */
+    void setAnalogWriteResolution(int p_resolution)
+    {
+        analog_write_resolution = p_resolution;
+    }
+
+    /**
+     * @brief Set the analog reference
+     * @param p_reference Reference type (DEFAULT, INTERNAL, or EXTERNAL)
+     */
+    void setAnalogReference(int p_reference)
+    {
+        analog_reference = p_reference;
+    }
+
+    /**
+     * @brief Attach an interrupt to a pin
+     * @param p_pin Pin number
+     * @param p_function Interrupt callback function
+     * @param p_mode Interrupt mode (CHANGE, RISING, or FALLING)
+     */
+    void attachInterrupt(int p_pin, void (*p_function)(), int p_mode)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].interrupt_callback = p_function;
+            pins[p_pin].interrupt_mode = p_mode;
+            pins[p_pin].last_value = pins[p_pin].value;
+        }
+    }
+
+    /**
+     * @brief Detach an interrupt from a pin
+     * @param p_pin Pin number
+     */
+    void detachInterrupt(int p_pin)
+    {
+        if (pins.find(p_pin) != pins.end())
+        {
+            pins[p_pin].interrupt_callback = nullptr;
+            pins[p_pin].interrupt_mode = 0;
+        }
+    }
+
+private:
+
+    /**
+     * @brief Check and trigger interrupt if conditions are met
+     * @param p_pin Pin number to check
+     */
+    void checkInterrupt(int p_pin)
+    {
+        if (pins.find(p_pin) == pins.end())
+            return;
+
+        Pin& pin = pins[p_pin];
+        if (!pin.interrupt_callback)
+            return;
+
+        bool trigger = false;
+        int current_value = pin.value;
+        int last = pin.last_value;
+
+        switch (pin.interrupt_mode)
+        {
+            case CHANGE:
+                trigger = (current_value != last);
+                break;
+            case RISING:
+                trigger = (last == LOW && current_value == HIGH);
+                break;
+            case FALLING:
+                trigger = (last == HIGH && current_value == LOW);
+                break;
+            default:
+                break;
+        }
+
+        pin.last_value = current_value;
+
+        if (trigger)
+        {
+            pin.interrupt_callback();
         }
     }
 
@@ -660,12 +817,15 @@ private:
 
 private:
 
-    std::map<int, Pin> pins;       ///< Map of all pins (0-19)
-    SPIEmulator spi;               ///< SPI bus emulator
-    SerialEmulator serial;         ///< Serial (UART) emulator
-    TimerEmulator timer;           ///< Timer emulator
-    bool running = false;          ///< Simulation running state
-    std::thread simulation_thread; ///< Simulation thread
+    std::map<int, Pin> pins;         ///< Map of all pins (0-19)
+    SPIEmulator spi;                 ///< SPI bus emulator
+    SerialEmulator serial;           ///< Serial (UART) emulator
+    TimerEmulator timer;             ///< Timer emulator
+    bool running = false;            ///< Simulation running state
+    std::thread simulation_thread;   ///< Simulation thread
+    int analog_read_resolution = 10; ///< ADC resolution in bits (default 10)
+    int analog_write_resolution = 8; ///< PWM resolution in bits (default 8)
+    int analog_reference = DEFAULT;  ///< Analog reference type
 };
 
 /// Global instance for Arduino compatibility
@@ -756,6 +916,492 @@ inline void delay(long p_ms)
     arduino_sim.getTimer().delay(p_ms);
 }
 
+/**
+ * @brief Delay execution for specified microseconds
+ * @param p_us Microseconds to delay
+ */
+inline void delayMicroseconds(int p_us)
+{
+    std::this_thread::sleep_for(std::chrono::microseconds(p_us));
+}
+
+/**
+ * @brief Measure the duration of a pulse on a pin
+ * @param p_pin Pin number
+ * @param p_state State to measure (HIGH or LOW)
+ * @param p_timeout Timeout in microseconds (default: 1000000)
+ * @return Duration of the pulse in microseconds
+ *
+ * In simulation mode, returns a mock value based on pin state.
+ */
+inline long pulseIn(int p_pin, int p_state, long p_timeout = 1000000)
+{
+    (void)p_timeout; // Unused in simulation
+    // Simple simulation: return a value based on current pin state
+    int pin_value = arduino_sim.digitalRead(p_pin);
+    if (pin_value == p_state)
+    {
+        // Return a simulated pulse duration
+        return 1000 + (std::rand() % 500); // 1000-1500 microseconds
+    }
+    return 0;
+}
+
+/**
+ * @brief Set the analog read resolution
+ * @param p_resolution Resolution in bits
+ */
+inline void analogReadResolution(int p_resolution)
+{
+    arduino_sim.setAnalogReadResolution(p_resolution);
+}
+
+/**
+ * @brief Set the analog write resolution
+ * @param p_resolution Resolution in bits
+ */
+inline void analogWriteResolution(int p_resolution)
+{
+    arduino_sim.setAnalogWriteResolution(p_resolution);
+}
+
+/**
+ * @brief Set the analog reference voltage
+ * @param p_reference Reference type (DEFAULT, INTERNAL, or EXTERNAL)
+ */
+inline void analogReference(int p_reference)
+{
+    arduino_sim.setAnalogReference(p_reference);
+}
+
+/**
+ * @brief Attach an interrupt to a pin
+ * @param p_pin Pin number
+ * @param p_function Interrupt callback function
+ * @param p_mode Interrupt mode (CHANGE, RISING, or FALLING)
+ */
+inline void attachInterrupt(int p_pin, void (*p_function)(), int p_mode)
+{
+    arduino_sim.attachInterrupt(p_pin, p_function, p_mode);
+}
+
+/**
+ * @brief Detach an interrupt from a pin
+ * @param p_pin Pin number
+ */
+inline void detachInterrupt(int p_pin)
+{
+    arduino_sim.detachInterrupt(p_pin);
+}
+
+/**
+ * @brief Generate a tone on a pin
+ * @param p_pin Pin number
+ * @param p_frequency Frequency in Hz
+ *
+ * In simulation mode, this just sets the pin state.
+ */
+inline void tone(int p_pin, int p_frequency)
+{
+    (void)p_frequency; // Unused in simulation
+    arduino_sim.digitalWrite(p_pin, HIGH);
+}
+
+/**
+ * @brief Generate a tone on a pin for a duration
+ * @param p_pin Pin number
+ * @param p_frequency Frequency in Hz
+ * @param p_duration Duration in milliseconds
+ *
+ * In simulation mode, this just sets the pin state temporarily.
+ */
+inline void tone(int p_pin, int p_frequency, long p_duration)
+{
+    (void)p_frequency; // Unused in simulation
+    arduino_sim.digitalWrite(p_pin, HIGH);
+    delay(p_duration);
+    arduino_sim.digitalWrite(p_pin, LOW);
+}
+
+/**
+ * @brief Stop generating a tone on a pin
+ * @param p_pin Pin number
+ */
+inline void noTone(int p_pin)
+{
+    arduino_sim.digitalWrite(p_pin, LOW);
+}
+
+// Math functions
+
+/**
+ * @brief Calculate absolute value
+ * @param p_value Input value
+ * @return Absolute value
+ */
+inline int abs(int p_value)
+{
+    return std::abs(p_value);
+}
+
+/**
+ * @brief Constrain a value within a range
+ * @param p_value Value to constrain
+ * @param p_min Minimum value
+ * @param p_max Maximum value
+ * @return Constrained value
+ */
+inline int constrain(int p_value, int p_min, int p_max)
+{
+    if (p_value < p_min)
+        return p_min;
+    if (p_value > p_max)
+        return p_max;
+    return p_value;
+}
+
+/**
+ * @brief Map a value from one range to another
+ * @param p_val Value to map
+ * @param p_min Input range minimum
+ * @param p_max Input range maximum
+ * @param p_new_min Output range minimum
+ * @param p_new_max Output range maximum
+ * @return Mapped value
+ */
+inline long
+map(long p_val, long p_min, long p_max, long p_new_min, long p_new_max)
+{
+    return (p_val - p_min) * (p_new_max - p_new_min) / (p_max - p_min) +
+           p_new_min;
+}
+
+/**
+ * @brief Return the maximum of two values
+ * @param p_val1 First value
+ * @param p_val2 Second value
+ * @return Maximum value
+ */
+inline int max(int p_val1, int p_val2)
+{
+    return (p_val1 > p_val2) ? p_val1 : p_val2;
+}
+
+/**
+ * @brief Return the minimum of two values
+ * @param p_val1 First value
+ * @param p_val2 Second value
+ * @return Minimum value
+ */
+inline int min(int p_val1, int p_val2)
+{
+    return (p_val1 < p_val2) ? p_val1 : p_val2;
+}
+
+/**
+ * @brief Raise a base to a power
+ * @param p_base Base value
+ * @param p_exponent Exponent value
+ * @return Result of base^exponent
+ */
+inline double pow(double p_base, double p_exponent)
+{
+    return std::pow(p_base, p_exponent);
+}
+
+/**
+ * @brief Calculate the square of a number
+ * @param p_value Input value
+ * @return Square of the value
+ */
+inline int sq(int p_value)
+{
+    return p_value * p_value;
+}
+
+/**
+ * @brief Calculate the square root of a number
+ * @param p_value Input value
+ * @return Square root of the value
+ */
+inline double sqrt(double p_value)
+{
+    return std::sqrt(p_value);
+}
+
+/**
+ * @brief Calculate the cosine of an angle
+ * @param p_angle Angle in radians
+ * @return Cosine of the angle
+ */
+inline double cos(double p_angle)
+{
+    return std::cos(p_angle);
+}
+
+/**
+ * @brief Calculate the sine of an angle
+ * @param p_angle Angle in radians
+ * @return Sine of the angle
+ */
+inline double sin(double p_angle)
+{
+    return std::sin(p_angle);
+}
+
+/**
+ * @brief Calculate the tangent of an angle
+ * @param p_angle Angle in radians
+ * @return Tangent of the angle
+ */
+inline double tan(double p_angle)
+{
+    return std::tan(p_angle);
+}
+
+// Character functions
+
+/**
+ * @brief Check if character is alphabetic
+ * @param p_c Character to check
+ * @return true if alphabetic, false otherwise
+ */
+inline boolean isAlpha(char p_c)
+{
+    return std::isalpha(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is alphanumeric
+ * @param p_c Character to check
+ * @return true if alphanumeric, false otherwise
+ */
+inline boolean isAlphaNumeric(char p_c)
+{
+    return std::isalnum(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is ASCII
+ * @param p_c Character to check
+ * @return true if 7-bit ASCII, false otherwise
+ */
+inline boolean isAscii(char p_c)
+{
+    return (static_cast<unsigned char>(p_c) <= 127);
+}
+
+/**
+ * @brief Check if character is a control character
+ * @param p_c Character to check
+ * @return true if control character, false otherwise
+ */
+inline boolean isControl(char p_c)
+{
+    return std::iscntrl(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is a digit
+ * @param p_c Character to check
+ * @return true if digit (0-9), false otherwise
+ */
+inline boolean isDigit(char p_c)
+{
+    return std::isdigit(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is a printable character (excluding space)
+ * @param p_c Character to check
+ * @return true if printable and not space, false otherwise
+ */
+inline boolean isGraph(char p_c)
+{
+    return std::isgraph(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is a hexadecimal digit
+ * @param p_c Character to check
+ * @return true if hex digit (0-9, A-F, a-f), false otherwise
+ */
+inline boolean isHexadecimalDigit(char p_c)
+{
+    return std::isxdigit(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is lowercase
+ * @param p_c Character to check
+ * @return true if lowercase, false otherwise
+ */
+inline boolean isLowerCase(char p_c)
+{
+    return std::islower(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is printable (including space)
+ * @param p_c Character to check
+ * @return true if printable, false otherwise
+ */
+inline boolean isPrintable(char p_c)
+{
+    return std::isprint(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is punctuation
+ * @param p_c Character to check
+ * @return true if punctuation, false otherwise
+ */
+inline boolean isPunct(char p_c)
+{
+    return std::ispunct(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is whitespace
+ * @param p_c Character to check
+ * @return true if whitespace, false otherwise
+ */
+inline boolean isSpace(char p_c)
+{
+    return std::isspace(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is uppercase
+ * @param p_c Character to check
+ * @return true if uppercase, false otherwise
+ */
+inline boolean isUpperCase(char p_c)
+{
+    return std::isupper(static_cast<unsigned char>(p_c)) != 0;
+}
+
+/**
+ * @brief Check if character is whitespace (same as isSpace)
+ * @param p_c Character to check
+ * @return true if whitespace, false otherwise
+ */
+inline boolean isWhitespace(char p_c)
+{
+    return isSpace(p_c);
+}
+
+// Random functions (Note: conflicts with stdlib random() avoided by using long
+// return type)
+
+/**
+ * @brief Generate a random number within a range
+ * @param p_max Maximum value (exclusive)
+ * @return Random number between 0 and p_max-1
+ */
+inline long random(long p_max)
+{
+    return std::rand() % p_max;
+}
+
+/**
+ * @brief Generate a random number within a range
+ * @param p_min Minimum value (inclusive)
+ * @param p_max Maximum value (exclusive)
+ * @return Random number between p_min and p_max-1
+ */
+inline long random(long p_min, long p_max)
+{
+    return p_min + (std::rand() % (p_max - p_min));
+}
+
+/**
+ * @brief Seed the random number generator
+ * @param p_seed Seed value
+ */
+inline void randomSeed(unsigned long p_seed)
+{
+    std::srand(static_cast<unsigned int>(p_seed));
+}
+
+// Bit manipulation functions
+
+/**
+ * @brief Get the value of a specific bit
+ * @param p_value Value to read from
+ * @param p_bit_number Bit number (0 = LSB)
+ * @return true if bit is set, false otherwise
+ */
+inline boolean bit(int p_value, int p_bit_number)
+{
+    return ((p_value >> p_bit_number) & 1) != 0;
+}
+
+/**
+ * @brief Clear a specific bit
+ * @param p_value Reference to value to modify
+ * @param p_bit Bit number to clear
+ */
+inline void bitClear(int& p_value, int p_bit)
+{
+    p_value &= ~(1 << p_bit);
+}
+
+/**
+ * @brief Read the value of a specific bit
+ * @param p_value Value to read from
+ * @param p_bit_number Bit number (0 = LSB)
+ * @return true if bit is set, false otherwise
+ */
+inline boolean bitRead(int p_value, int p_bit_number)
+{
+    return ((p_value >> p_bit_number) & 1) != 0;
+}
+
+/**
+ * @brief Set a specific bit
+ * @param p_value Reference to value to modify
+ * @param p_bit Bit number to set
+ */
+inline void bitSet(int& p_value, int p_bit)
+{
+    p_value |= (1 << p_bit);
+}
+
+/**
+ * @brief Write a value to a specific bit
+ * @param p_value Reference to value to modify
+ * @param p_bit Bit number
+ * @param p_bit_value Value to write (0 or 1)
+ */
+inline void bitWrite(int& p_value, int p_bit, int p_bit_value)
+{
+    if (p_bit_value)
+        p_value |= (1 << p_bit);
+    else
+        p_value &= ~(1 << p_bit);
+}
+
+/**
+ * @brief Get the high byte of an int
+ * @param p_value Value to extract from
+ * @return High byte (bits 8-15)
+ */
+inline byte highByte(int p_value)
+{
+    return static_cast<byte>((p_value >> 8) & 0xFF);
+}
+
+/**
+ * @brief Get the low byte of an int
+ * @param p_value Value to extract from
+ * @return Low byte (bits 0-7)
+ */
+inline byte lowByte(int p_value)
+{
+    return static_cast<byte>(p_value & 0xFF);
+}
+
 /** @} */ // end of GlobalFunctions
 
 /**
@@ -789,12 +1435,77 @@ public:
     }
 
     /**
+     * @brief Print an integer without newline
+     * @param p_val Integer to print
+     */
+    void print(int p_val) const
+    {
+        arduino_sim.getSerial().print(std::to_string(p_val).c_str());
+    }
+
+    /**
+     * @brief Print a long without newline
+     * @param p_val Long to print
+     */
+    void print(long p_val) const
+    {
+        arduino_sim.getSerial().print(std::to_string(p_val).c_str());
+    }
+
+    /**
+     * @brief Print a double without newline
+     * @param p_val Double to print
+     */
+    void print(double p_val) const
+    {
+        arduino_sim.getSerial().print(std::to_string(p_val).c_str());
+    }
+
+    /**
      * @brief Print a string with newline
      * @param p_str Null-terminated string to print
      */
     void println(const char* p_str) const
     {
         arduino_sim.getSerial().println(p_str);
+    }
+
+    /**
+     * @brief Print an integer with newline
+     * @param p_val Integer to print
+     */
+    void println(int p_val) const
+    {
+        print(p_val);
+        arduino_sim.getSerial().println();
+    }
+
+    /**
+     * @brief Print a long with newline
+     * @param p_val Long to print
+     */
+    void println(long p_val) const
+    {
+        print(p_val);
+        arduino_sim.getSerial().println();
+    }
+
+    /**
+     * @brief Print a double with newline
+     * @param p_val Double to print
+     */
+    void println(double p_val) const
+    {
+        print(p_val);
+        arduino_sim.getSerial().println();
+    }
+
+    /**
+     * @brief Print just a newline
+     */
+    void println() const
+    {
+        arduino_sim.getSerial().println();
     }
 
     /**

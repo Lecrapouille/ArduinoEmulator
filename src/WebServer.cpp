@@ -364,25 +364,15 @@ void WebServer::handleAnalogSet(const httplib::Request& req,
         int value = json_data["value"];
 
         // Set analog value (A0-A5 = pins 14-19)
-        // analogRead() returns value * 1023, so we need to scale
         int actual_pin = pin + 14;
         if (actual_pin >= 14 && actual_pin <= 19)
         {
-            Pin* p = arduino_sim.getPin(actual_pin);
-            if (p)
-            {
-                // Store normalized value (0.0 to 1.0) so
-                // analogRead() works correctly
-                p->value = (value > 0) ? 1 : 0; // Simplified for now
-                response["status"] = "success";
-                response["message"] = "Analog A" + std::to_string(pin) +
-                                      " set to " + std::to_string(value);
-            }
-            else
-            {
-                response["status"] = "error";
-                response["message"] = "Pin not found";
-            }
+            // Use the new setAnalogValue method which properly stores
+            // the analog value for analogRead()
+            arduino_sim.setAnalogValue(actual_pin, value);
+            response["status"] = "success";
+            response["message"] = "Analog A" + std::to_string(pin) +
+                                  " set to " + std::to_string(value);
         }
         else
         {

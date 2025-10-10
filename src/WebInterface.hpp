@@ -713,6 +713,15 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                 </div>
             </div>
 
+            <!-- Debug Terminal Panel -->
+            <div class="panel panel-full">
+                <h2>🐞 Debug / System</h2>
+                <div class="uart-terminal" id="debug-terminal"></div>
+                <div class="uart-input">
+                    <button class="clear" onclick="clearDebug()">Clear</button>
+                </div>
+            </div>
+
             <!-- Pin Status Panel -->
             <div class="panel panel-full">
                 <h2>📋 Pin Status Table</h2>
@@ -769,9 +778,9 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                     if (data.status === 'success') {
                         updateStatusIndicator(true);
                         startAutoRefresh();
-                        addUARTMessage('[SYSTEM] Simulation started');
+                        addDebugMessage('[SYSTEM] Simulation started');
                     } else {
-                        addUARTMessage('[ERROR] ' + data.message);
+                        addDebugMessage('[ERROR] ' + data.message);
                     }
                 });
         }
@@ -783,9 +792,9 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                     if (data.status === 'success') {
                         updateStatusIndicator(false);
                         stopAutoRefresh();
-                        addUARTMessage('[SYSTEM] Simulation stopped');
+                        addDebugMessage('[SYSTEM] Simulation stopped');
                     } else {
-                        addUARTMessage('[ERROR] ' + data.message);
+                        addDebugMessage('[ERROR] ' + data.message);
                     }
                 });
         }
@@ -798,8 +807,9 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             fetch('/api/reset', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    addUARTMessage('[SYSTEM] Simulation reset');
+                    addDebugMessage('[SYSTEM] Simulation reset');
                     clearSerial();
+                    resetUIControls();
                     refreshPins();
 
                     // Restart if it was running
@@ -811,6 +821,39 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                         updateStatusIndicator(false);
                     }
                 });
+        }
+
+        function resetUIControls() {
+            // Reset PWM sliders to 0
+            const pwmPins = [3, 5, 6, 9, 10, 11];
+            pwmPins.forEach(pin => {
+                const slider = document.querySelector(`input[oninput*="updatePWM(${pin}"]`);
+                if (slider) {
+                    slider.value = 0;
+                    document.getElementById(`pwm-${pin}-value`).textContent = '0';
+                }
+            });
+
+            // Reset Analog sliders to 0
+            for (let i = 0; i < 6; i++) {
+                const slider = document.querySelector(`input[oninput*="updateAnalog(${i}"]`);
+                if (slider) {
+                    slider.value = 0;
+                    document.getElementById(`analog-${i}`).textContent = '0';
+                }
+            }
+
+            // Reset GPIO toggles to OFF
+            const gpioToggles = document.querySelectorAll('.gpio-toggle');
+            gpioToggles.forEach(toggle => {
+                toggle.classList.remove('active');
+            });
+
+            // Reset all LEDs to off
+            const leds = document.querySelectorAll('.led');
+            leds.forEach(led => {
+                led.classList.remove('led-on');
+            });
         }
 
         function refreshPins() {
@@ -877,7 +920,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             })
             .then(res => res.json())
             .then(data => {
-                addUARTMessage(`[PIN] ${data.message}`);
+                addDebugMessage(`[PIN] ${data.message}`);
                 refreshPins();
             });
         }
@@ -890,7 +933,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                         const lines = data.output.split('\n');
                         lines.forEach(line => {
                             if (line.trim()) {
-                                addUARTMessage('[RX] ' + line);
+                                addUARTMessage(line);
                             }
                         });
                     }
@@ -906,8 +949,21 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             terminal.scrollTop = terminal.scrollHeight;
         }
 
+        function addDebugMessage(message) {
+            const terminal = document.getElementById('debug-terminal');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.textContent = `[${timestamp}] ${message}`;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
         function clearSerial() {
             document.getElementById('uart-terminal').innerHTML = '';
+        }
+
+        function clearDebug() {
+            document.getElementById('debug-terminal').innerHTML = '';
         }
 
         function sendSerial() {
@@ -922,7 +978,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             })
             .then(res => res.json())
             .then(data => {
-                addUARTMessage('[TX] ' + input);
+                addDebugMessage('[TX] ' + input);
                 document.getElementById('serial-input').value = '';
             });
         }
@@ -936,7 +992,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             })
             .then(res => res.json())
             .then(data => {
-                addUARTMessage(`[GPIO] ${data.message}`);
+                addDebugMessage(`[GPIO] ${data.message}`);
                 refreshPins();
                 updateLED(pin);
             })
@@ -973,12 +1029,12 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             .then(res => res.json())
             .then(data => {
                 const percentage = Math.round(value / 255 * 100);
-                addUARTMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
+                addDebugMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
             })
             .catch(err => {
                 // Fallback: just update UI
                 const percentage = Math.round(value / 255 * 100);
-                addUARTMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
+                addDebugMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
             });
 
             // Visual feedback for LED if available
@@ -1009,21 +1065,22 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             })
             .then(res => res.json())
             .then(data => {
-                addUARTMessage(`[ANALOG] A${pin} = ${value} (${voltage}V)`);
+                addDebugMessage(`[ANALOG] A${pin} = ${value} (${voltage}V)`);
             })
             .catch(err => {
                 // Fallback: just log
-                addUARTMessage(`[ANALOG] A${pin} = ${value} (${voltage}V)`);
+                addDebugMessage(`[ANALOG] A${pin} = ${value} (${voltage}V)`);
             });
         }
 
         // Start auto-refresh on page load
         window.onload = () => {
             refreshPins();
-            addUARTMessage('[SYSTEM] Arduino Emulator ready');
-            addUARTMessage('[INFO] Use GPIO toggles to control pins');
-            addUARTMessage('[INFO] Use PWM sliders to set analog output');
-            addUARTMessage('[INFO] Use Analog sliders to simulate sensor input');
+            addDebugMessage('[SYSTEM] Arduino Emulator ready');
+            addDebugMessage('[INFO] Use GPIO toggles to control pins');
+            addDebugMessage('[INFO] Use PWM sliders to set analog output');
+            addDebugMessage('[INFO] Use Analog sliders to simulate sensor input');
+            setInterval(refreshSerial, 100);
         };
     </script>
 </body>

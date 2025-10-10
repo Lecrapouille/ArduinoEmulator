@@ -11,12 +11,6 @@ Arduino emulator with its web interface for testing your `.ino` files without ph
 - ✅ Web interface to control and monitor the simulation
 - ✅ REST API for integration
 
-## Build
-
-```bash
-make
-```
-
 ## Usage
 
 ### 1. Prepare your Arduino code
