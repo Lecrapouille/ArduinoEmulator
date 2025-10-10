@@ -7,8 +7,9 @@
 
 #include "WebServer.hpp"
 
+#include "cxxopts.hpp"
+
 #include <cstdlib>
-#include <cxxopts.hpp>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -46,7 +47,7 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             "Server port",
             cxxopts::value<int>()->default_value("8080"))(
             "f,frequency",
-            "Arduino loop frequency in Hz (1-10000)",
+            "Arduino loop frequency in Hz (1-100)",
             cxxopts::value<int>()->default_value("100"))(
             "h,help", "Show this help message");
 
@@ -66,7 +67,7 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             std::cout << "  " << argv[0]
                       << " --address localhost --port 9090\n";
             std::cout << "  " << argv[0]
-                      << " -f 1000  # Run Arduino loop at 1000 Hz\n\n";
+                      << " -f 100  # Run Arduino loop at 100 Hz\n\n";
             return std::nullopt;
         }
 
@@ -84,9 +85,9 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
         }
 
         // Validate frequency range
-        if (config.frequency < 1 || config.frequency > 10000)
+        if (config.frequency < 1 || config.frequency > 100)
         {
-            std::cerr << "Error: Frequency must be between 1 and 10000 Hz\n";
+            std::cerr << "Error: Frequency must be between 1 and 100 Hz\n";
             return std::nullopt;
         }
 

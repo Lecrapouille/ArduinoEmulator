@@ -1,3 +1,6 @@
+#pragma once
+
+constexpr const char* WEB_INTERFACE_HTML = R"HTML(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1020,4 +1023,4 @@
         };
     </script>
 </body>
-</html>
+</html>)HTML";

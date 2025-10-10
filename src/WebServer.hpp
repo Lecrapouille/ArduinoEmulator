@@ -5,8 +5,7 @@
  * @copyright MIT License
  */
 
-#ifndef WEBSERVER_HPP
-#define WEBSERVER_HPP
+#pragma once
 
 #include "cpp-httplib/httplib.h"
 
@@ -114,5 +113,3 @@ private:
     std::atomic<bool> m_simulation_running{ false };
     std::thread m_arduino_thread;
 };
-
-#endif // WEBSERVER_HPP

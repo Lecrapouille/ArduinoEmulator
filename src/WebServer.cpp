@@ -6,12 +6,11 @@
  */
 
 #include "WebServer.hpp"
-#include "ArduinoEmulator/ArduinoEmulator.hpp"
-#include "nlohmann/json.hpp"
+#include "WebInterface.hpp"
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
+#include "ArduinoEmulator/ArduinoEmulator.hpp"
+
+#include "nlohmann/json.hpp"
 
 // Arduino simulation
 extern ArduinoEmulator arduino_sim;
@@ -34,27 +33,7 @@ WebServer::~WebServer()
 
 std::string WebServer::loadHTMLTemplate() const
 {
-    // Try to load from file first
-    std::ifstream file("src/web_interface.html");
-    if (file.is_open())
-    {
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
-    }
-
-    // Fallback: embedded HTML
-    return R"HTML(<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Arduino Emulator</title>
-</head>
-<body>
-    <h1>Arduino Emulator - Interface Loading Error</h1>
-    <p>Could not load web interface template. Please ensure 'src/web_interface.html' exists.</p>
-</body>
-</html>)HTML";
+    return WEB_INTERFACE_HTML;
 }
 
 void WebServer::setupRoutes()
@@ -124,6 +103,7 @@ void WebServer::runArduinoSimulation() const
         // Execute loop() at configured frequency
         if (elapsed.count() >= period_ms)
         {
+            // Call Arduino loop()
             loop();
             last_loop = now;
         }
@@ -172,18 +152,18 @@ bool WebServer::start()
 
 void WebServer::stop()
 {
-    if (m_server_running)
+    if (!m_server_running)
+        return;
+
+    stopArduinoSimulation();
+    m_server.stop();
+
+    if (m_server_thread.joinable())
     {
-        stopArduinoSimulation();
-        m_server.stop();
-
-        if (m_server_thread.joinable())
-        {
-            m_server_thread.join();
-        }
-
-        m_server_running = false;
+        m_server_thread.join();
     }
+
+    m_server_running = false;
 }
 
 // Route handlers implementation
