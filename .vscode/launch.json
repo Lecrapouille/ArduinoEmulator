@@ -2,11 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ArduinoEmulator with gdb",
+            "name": "Arduino-Emulator with gdb",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/ArduinoEmulator",
-            "args": [],
+            "program": "${workspaceFolder}/build/Arduino-Emulator",
+            "args": [
+                "--address",
+                "localhost",
+                "--port",
+                "8080",
+                "--frequency",
+                "100"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
