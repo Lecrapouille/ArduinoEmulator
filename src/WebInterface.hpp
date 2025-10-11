@@ -465,7 +465,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             border-radius: 50%;
             background: #34495e;
             border: 3px solid #2c3e50;
-            transition: all 0.3s;
+            transition: all 0.01s ease-out;
             margin: 0 auto;
         }
 
@@ -861,7 +861,8 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
     </div>
 
     <script>
-        // Auto-refresh every 500ms
+        // Auto-refresh rate configurable via CLI (-f option)
+        const REFRESH_INTERVAL_MS = ##REFRESH_INTERVAL##;
         let autoRefreshInterval = null;
 
         function startAutoRefresh() {
@@ -869,7 +870,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                 autoRefreshInterval = setInterval(() => {
                     refreshPins();
                     refreshSerial();
-                }, 500);
+                }, REFRESH_INTERVAL_MS);
             }
         }
 
@@ -1245,6 +1246,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             initGPIOToggles();
             refreshPins();
             addDebugMessage('[SYSTEM] Arduino Emulator ready');
+            addDebugMessage(`[INFO] Web refresh rate: ${1000/REFRESH_INTERVAL_MS} Hz (${REFRESH_INTERVAL_MS} ms)`);
             addDebugMessage('[INFO] Only pins configured with pinMode() are enabled');
             addDebugMessage('[INFO] Use GPIO toggles to simulate INPUT pins (buttons, sensors)');
             addDebugMessage('[INFO] OUTPUT pins and PWM are controlled by Arduino code');

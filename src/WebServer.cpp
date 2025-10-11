@@ -17,13 +17,15 @@ extern ArduinoEmulator arduino_sim;
 extern void setup();
 extern void loop();
 
-WebServer::WebServer(const std::string& address, int port, int loop_frequency)
-    : m_address(address), m_port(port), m_loop_frequency(loop_frequency)
+WebServer::WebServer(const std::string& address,
+                     int port,
+                     int refresh_frequency)
+    : m_address(address), m_port(port), m_refresh_frequency(refresh_frequency)
 {
-    if (m_loop_frequency < 1)
-        m_loop_frequency = 1;
-    if (m_loop_frequency > 10000)
-        m_loop_frequency = 10000;
+    if (m_refresh_frequency < 1)
+        m_refresh_frequency = 1;
+    if (m_refresh_frequency > 100)
+        m_refresh_frequency = 100;
 }
 
 WebServer::~WebServer()
@@ -86,30 +88,10 @@ void WebServer::runArduinoSimulation() const
     // Call Arduino setup
     setup();
 
-    // Calculate timing parameters
-    const int period_ms = 1000 / m_loop_frequency;
-    const int sleep_ms =
-        std::max(1, period_ms / 2); // Sleep for half period to avoid 100% CPU
-
-    auto last_loop = std::chrono::steady_clock::now();
-
     while (m_simulation_running)
     {
-        const auto now = std::chrono::steady_clock::now();
-        const auto elapsed =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now -
-                                                                  last_loop);
-
-        // Execute loop() at configured frequency
-        if (elapsed.count() >= period_ms)
-        {
-            // Call Arduino loop()
-            loop();
-            last_loop = now;
-        }
-
-        // Small pause to avoid 100% CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+        // Call Arduino loop
+        loop();
     }
 }
 
@@ -172,6 +154,17 @@ void WebServer::handleHomePage(const httplib::Request&,
                                httplib::Response& res) const
 {
     std::string html = loadHTMLTemplate();
+
+    // Inject refresh rate into HTML (convert Hz to milliseconds)
+    int refresh_ms = 1000 / m_refresh_frequency;
+    std::string refresh_placeholder = "##REFRESH_INTERVAL##";
+    size_t pos = html.find(refresh_placeholder);
+    if (pos != std::string::npos)
+    {
+        html.replace(
+            pos, refresh_placeholder.length(), std::to_string(refresh_ms));
+    }
+
     res.set_content(html, "text/html");
 }
 

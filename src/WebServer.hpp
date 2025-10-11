@@ -24,11 +24,11 @@ public:
      * @brief Constructor
      * @param address Server address (default: "0.0.0.0")
      * @param port Server port (default: 8080)
-     * @param loop_frequency Loop frequency in Hz (default: 100)
+     * @param refresh_frequency Web interface refresh rate in Hz (default: 100)
      */
     explicit WebServer(const std::string& address = "0.0.0.0",
                        int port = 8080,
-                       int loop_frequency = 100);
+                       int refresh_frequency = 100);
 
     /**
      * @brief Destructor - ensures proper cleanup
@@ -105,7 +105,7 @@ private:
     httplib::Server m_server;
     std::string m_address;
     int m_port;
-    int m_loop_frequency; // Arduino loop frequency in Hz
+    int m_refresh_frequency; // Web interface refresh rate in Hz
     std::atomic<bool> m_server_running{ false };
     std::thread m_server_thread;
 

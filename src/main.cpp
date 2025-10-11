@@ -47,8 +47,8 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             "Server port",
             cxxopts::value<int>()->default_value("8080"))(
             "f,frequency",
-            "Arduino loop frequency in Hz (1-100)",
-            cxxopts::value<int>()->default_value("1000"))(
+            "Web interface refresh rate in Hz (1-100, default: 100)",
+            cxxopts::value<int>()->default_value("100"))(
             "h,help", "Show this help message");
 
         options.positional_help("[OPTIONS]");
@@ -67,7 +67,7 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             std::cout << "  " << argv[0]
                       << " --address localhost --port 9090\n";
             std::cout << "  " << argv[0]
-                      << " -f 100  # Run Arduino loop at 100 Hz\n\n";
+                      << " -f 20  # Refresh web interface at 20 Hz\n\n";
             return std::nullopt;
         }
 
@@ -85,9 +85,9 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
         }
 
         // Validate frequency range
-        if (config.frequency < 1 || config.frequency > 1000)
+        if (config.frequency < 1 || config.frequency > 100)
         {
-            std::cerr << "Error: Frequency must be between 1 and 1000 Hz\n";
+            std::cerr << "Error: Frequency must be between 1 and 100 Hz\n";
             return std::nullopt;
         }
 
@@ -113,8 +113,9 @@ int main(int argc, char* argv[])
     std::cout << "Arduino Emulator Web Interface\n";
     std::cout << "Server address: " << config->address << "\n";
     std::cout << "Server port: " << config->port << "\n";
-    std::cout << "Loop frequency: " << config->frequency << " Hz\n";
-    std::cout << "Loop period: " << (1000.0 / config->frequency) << " ms\n";
+    std::cout << "Web refresh rate: " << config->frequency << " Hz ("
+              << (1000 / config->frequency) << " ms)\n";
+    std::cout << "Note: loop() runs continuously in real-time\n";
     std::cout << "========================================\n";
     std::cout << "Starting server...\n";
 
