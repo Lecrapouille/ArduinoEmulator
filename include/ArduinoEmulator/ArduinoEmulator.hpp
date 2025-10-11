@@ -26,11 +26,16 @@
 #include <vector>
 
 // Arduino definitions
-#define HIGH 1         ///< Digital HIGH state (1)
-#define LOW 0          ///< Digital LOW state (0)
-#define INPUT 0        ///< Pin configured as input
-#define OUTPUT 1       ///< Pin configured as output
-#define INPUT_PULLUP 2 ///< Pin configured as input with pull-up resistor
+#define HIGH 1 ///< Digital HIGH state (1)
+#define LOW 0  ///< Digital LOW state (0)
+
+// Pin modes
+#define INPUT 0          ///< Pin configured as input
+#define OUTPUT 1         ///< Pin configured as output
+#define INPUT_PULLUP 2   ///< Pin configured as input with pull-up resistor
+#define INPUT_PULLDOWN 3 ///< Pin configured as input with pull-down resistor
+#define OUTPUT_OPEN_DRAIN \
+    4 ///< Pin configured as output with open-drain configuration
 
 // Interrupt modes
 #define CHANGE 1  ///< Interrupt on any change
@@ -54,6 +59,9 @@ constexpr int A2 = 16; ///< Analog pin 2
 constexpr int A3 = 17; ///< Analog pin 3
 constexpr int A4 = 18; ///< Analog pin 4
 constexpr int A5 = 19; ///< Analog pin 5
+
+// Built-in LED
+constexpr int LED_BUILTIN = 13; ///< Built-in LED on Arduino Uno (pin 13)
 
 /**
  * @class Pin
@@ -126,6 +134,7 @@ public:
     bool pwm_capable = false; ///< True if the pin supports PWM
     int pwm_value = 0;        ///< Current PWM value (0-255)
     int analog_value = 0;     ///< Analog read value (0-1023 by default)
+    bool configured = false; ///< True if pinMode() has been called for this pin
     std::function<void()> interrupt_callback = nullptr; ///< Interrupt callback
     int interrupt_mode = 0; ///< Interrupt mode (CHANGE, RISING, FALLING)
     int last_value = LOW;   ///< Last value for interrupt detection
@@ -535,6 +544,7 @@ public:
         if (pins.find(p_pin) != pins.end())
         {
             pins[p_pin].mode = p_mode;
+            pins[p_pin].configured = true;
         }
     }
 
@@ -596,6 +606,9 @@ public:
     {
         if (pins.find(p_pin) != pins.end())
         {
+            // Analog pins don't require pinMode() - mark as configured on first
+            // analogRead()
+            pins[p_pin].configured = true;
             return pins[p_pin].analogRead();
         }
         return 0;

@@ -248,6 +248,7 @@ void WebServer::handleGetPins(const httplib::Request&,
             pin_data["mode"] = pin->mode;
             pin_data["pwm_capable"] = pin->pwm_capable;
             pin_data["pwm_value"] = pin->pwm_value;
+            pin_data["configured"] = pin->configured;
             pins_data[std::to_string(i)] = pin_data;
         }
     }
@@ -266,6 +267,21 @@ void WebServer::handleSetPin(const httplib::Request& req,
         auto json_data = nlohmann::json::parse(req.body);
         int pin = json_data["pin"];
         int value = json_data["value"];
+
+        // Handle toggle case (value = -1)
+        if (value == -1)
+        {
+            Pin* p = arduino_sim.getPin(pin);
+            if (p)
+            {
+                // Toggle: flip the current value
+                value = (p->value == HIGH) ? LOW : HIGH;
+            }
+            else
+            {
+                value = LOW; // Default to LOW if pin not found
+            }
+        }
 
         // Force pin value (useful for simulating inputs)
         arduino_sim.forcePinValue(pin, value);

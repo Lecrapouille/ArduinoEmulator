@@ -142,6 +142,17 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             background: #2c3e50;
         }
 
+        .pin-mode-badge {
+            margin-left: auto;
+            padding: 2px 8px;
+            background: #f1c40f;
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: bold;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+
         .pin button {
             padding: 4px 8px;
             font-size: 0.75rem;
@@ -228,6 +239,20 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             margin-bottom: 15px;
             border: 2px solid #34495e;
             font-size: 0.9rem;
+        }
+
+        /* Debug Terminal */
+        .debug-terminal {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            border: 2px solid #333;
+            font-size: 0.85rem;
         }
 
         .uart-input {
@@ -329,7 +354,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             position: relative;
             width: 50px;
             height: 25px;
-            background: #ccc;
+            background: #95a5a6;
             border-radius: 25px;
             cursor: pointer;
             transition: background 0.3s;
@@ -337,6 +362,20 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
 
         .gpio-toggle.active {
             background: #4CAF50;
+        }
+
+        .gpio-toggle.disabled {
+            background: #e0e0e0;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .gpio-item.disabled {
+            opacity: 0.6;
+        }
+
+        .gpio-item.disabled span {
+            color: #999;
         }
 
         .gpio-toggle::before {
@@ -358,19 +397,26 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
 
         /* PWM Sliders */
         .pwm-control {
-            margin: 15px 0;
-        }
-
-        .pwm-slider {
-            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 15px;
             margin: 10px 0;
         }
 
+        .pwm-slider {
+            flex: 1;
+        }
+
+        .pwm-slider:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         .pwm-value {
+            min-width: 60px;
             text-align: center;
             font-weight: bold;
             color: #667eea;
-            font-size: 1.1rem;
         }
 
         /* Analog Inputs */
@@ -381,8 +427,21 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             margin: 10px 0;
         }
 
+        .analog-input.disabled {
+            opacity: 0.5;
+        }
+
+        .analog-input.disabled span {
+            color: #999;
+        }
+
         .analog-slider {
             flex: 1;
+        }
+
+        .analog-slider:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         .analog-value {
@@ -504,14 +563,85 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
         </div>
 
         <div class="simulator-layout">
-            <!-- Arduino Board Panel - Full Width -->
-            <div class="panel panel-full">
+            <!-- Arduino Board Panel -->
+            <div class="panel">
                 <h2>🎛️ Arduino Uno Board</h2>
                 <div class="arduino-board">
                     <div class="pin-grid">
                         <div class="pin-row" id="digital-pins"></div>
                         <div class="pin-row" id="analog-pins"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- LED Panel -->
+            <div class="panel">
+                <h2>💡 LED Indicators</h2>
+                <div class="led-grid">
+                    <div>
+                        <div class="led" id="led-0"></div>
+                        <div class="led-label">D0</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-1"></div>
+                        <div class="led-label">D1</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-2"></div>
+                        <div class="led-label">D2</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-3"></div>
+                        <div class="led-label">D3</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-4"></div>
+                        <div class="led-label">D4</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-5"></div>
+                        <div class="led-label">D5</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-6"></div>
+                        <div class="led-label">D6</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-7"></div>
+                        <div class="led-label">D7</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-8"></div>
+                        <div class="led-label">D8</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-9"></div>
+                        <div class="led-label">D9</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-10"></div>
+                        <div class="led-label">D10</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-11"></div>
+                        <div class="led-label">D11</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-12"></div>
+                        <div class="led-label">D12</div>
+                    </div>
+                    <div>
+                        <div class="led" id="led-13"></div>
+                        <div class="led-label">D13</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- I2C Panel -->
+            <div class="panel">
+                <h2>🔗 I2C Interface</h2>
+                <div style="padding: 20px; color: #666; text-align: center;">
+                    <p><em>I2C interface coming soon...</em></p>
                 </div>
             </div>
 
@@ -583,56 +713,61 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             <div class="panel">
                 <h2>📍 GPIO Controls</h2>
                 <div class="gpio-controls">
+                    <div class="gpio-item" data-pin="0">
+                        <span>Pin D0 (RX)</span>
+                        <div class="gpio-toggle"></div>
+                    </div>
+                    <div class="gpio-item" data-pin="1">
+                        <span>Pin D1 (TX)</span>
+                        <div class="gpio-toggle"></div>
+                    </div>
                     <div class="gpio-item" data-pin="2">
                         <span>Pin D2</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(2)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
                     <div class="gpio-item" data-pin="3">
                         <span>Pin D3 (PWM)</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(3)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
                     <div class="gpio-item" data-pin="4">
                         <span>Pin D4</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(4)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
                     <div class="gpio-item" data-pin="5">
                         <span>Pin D5 (PWM)</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(5)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
                     <div class="gpio-item" data-pin="6">
                         <span>Pin D6 (PWM)</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(6)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
                     <div class="gpio-item" data-pin="7">
                         <span>Pin D7</span>
-                        <div class="gpio-toggle" onclick="toggleGPIO(7)"></div>
+                        <div class="gpio-toggle"></div>
                     </div>
-                </div>
-
-                <div class="led-grid">
-                    <div>
-                        <div class="led" id="led-2"></div>
-                        <div class="led-label">D2</div>
+                    <div class="gpio-item" data-pin="8">
+                        <span>Pin D8</span>
+                        <div class="gpio-toggle"></div>
                     </div>
-                    <div>
-                        <div class="led" id="led-3"></div>
-                        <div class="led-label">D3</div>
+                    <div class="gpio-item" data-pin="9">
+                        <span>Pin D9 (PWM)</span>
+                        <div class="gpio-toggle"></div>
                     </div>
-                    <div>
-                        <div class="led" id="led-4"></div>
-                        <div class="led-label">D4</div>
+                    <div class="gpio-item" data-pin="10">
+                        <span>Pin D10 (PWM)</span>
+                        <div class="gpio-toggle"></div>
                     </div>
-                    <div>
-                        <div class="led" id="led-5"></div>
-                        <div class="led-label">D5</div>
+                    <div class="gpio-item" data-pin="11">
+                        <span>Pin D11 (PWM)</span>
+                        <div class="gpio-toggle"></div>
                     </div>
-                    <div>
-                        <div class="led" id="led-6"></div>
-                        <div class="led-label">D6</div>
+                    <div class="gpio-item" data-pin="12">
+                        <span>Pin D12</span>
+                        <div class="gpio-toggle"></div>
                     </div>
-                    <div>
-                        <div class="led" id="led-7"></div>
-                        <div class="led-label">D7</div>
+                    <div class="gpio-item" data-pin="13">
+                        <span>Pin D13</span>
+                        <div class="gpio-toggle"></div>
                     </div>
                 </div>
             </div>
@@ -641,102 +776,87 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             <div class="panel">
                 <h2>⚡ PWM Controls</h2>
                 <div class="pwm-control">
-                    <label>PWM D3: <span id="pwm-3-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(3, this.value)">
+                    <span>D3:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-3-slider" disabled>
+                    <span class="pwm-value" id="pwm-3-value">0</span>
                 </div>
                 <div class="pwm-control">
-                    <label>PWM D5: <span id="pwm-5-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(5, this.value)">
+                    <span>D5:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-5-slider" disabled>
+                    <span class="pwm-value" id="pwm-5-value">0</span>
                 </div>
                 <div class="pwm-control">
-                    <label>PWM D6: <span id="pwm-6-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(6, this.value)">
+                    <span>D6:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-6-slider" disabled>
+                    <span class="pwm-value" id="pwm-6-value">0</span>
                 </div>
                 <div class="pwm-control">
-                    <label>PWM D9: <span id="pwm-9-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(9, this.value)">
+                    <span>D9:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-9-slider" disabled>
+                    <span class="pwm-value" id="pwm-9-value">0</span>
                 </div>
                 <div class="pwm-control">
-                    <label>PWM D10: <span id="pwm-10-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(10, this.value)">
+                    <span>D10:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-10-slider" disabled>
+                    <span class="pwm-value" id="pwm-10-value">0</span>
                 </div>
                 <div class="pwm-control">
-                    <label>PWM D11: <span id="pwm-11-value" class="pwm-value">0</span></label>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
-                        oninput="updatePWM(11, this.value)">
+                    <span>D11:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-11-slider" disabled>
+                    <span class="pwm-value" id="pwm-11-value">0</span>
                 </div>
             </div>
 
             <!-- Analog Inputs Panel -->
             <div class="panel">
                 <h2>📊 Analog Inputs</h2>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-0">
                     <span>A0:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-0" min="0" max="1023" value="0"
                         oninput="updateAnalog(0, this.value)">
                     <span class="analog-value" id="analog-0">0</span>
                 </div>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-1">
                     <span>A1:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-1" min="0" max="1023" value="0"
                         oninput="updateAnalog(1, this.value)">
                     <span class="analog-value" id="analog-1">0</span>
                 </div>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-2">
                     <span>A2:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-2" min="0" max="1023" value="0"
                         oninput="updateAnalog(2, this.value)">
                     <span class="analog-value" id="analog-2">0</span>
                 </div>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-3">
                     <span>A3:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-3" min="0" max="1023" value="0"
                         oninput="updateAnalog(3, this.value)">
                     <span class="analog-value" id="analog-3">0</span>
                 </div>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-4">
                     <span>A4:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-4" min="0" max="1023" value="0"
                         oninput="updateAnalog(4, this.value)">
                     <span class="analog-value" id="analog-4">0</span>
                 </div>
-                <div class="analog-input">
+                <div class="analog-input" id="analog-input-5">
                     <span>A5:</span>
-                    <input type="range" class="analog-slider" min="0" max="1023" value="0"
+                    <input type="range" class="analog-slider" id="analog-slider-5" min="0" max="1023" value="0"
                         oninput="updateAnalog(5, this.value)">
                     <span class="analog-value" id="analog-5">0</span>
                 </div>
             </div>
 
-            <!-- Debug Terminal Panel -->
+            <!-- Debug Console Panel - Full Width -->
             <div class="panel panel-full">
-                <h2>🐞 Debug / System</h2>
-                <div class="uart-terminal" id="debug-terminal"></div>
+                <h2>🐛 Debug Console</h2>
+                <div class="debug-terminal" id="debug-terminal"></div>
                 <div class="uart-input">
-                    <button class="clear" onclick="clearDebug()">Clear</button>
+                    <button class="clear" onclick="clearDebug()">Clear Debug</button>
                 </div>
             </div>
 
-            <!-- Pin Status Panel -->
-            <div class="panel panel-full">
-                <h2>📋 Pin Status Table</h2>
-                <div id="pins-status"></div>
-
-                <div class="pin-control">
-                    <label>Manual Pin Control - Pin:</label>
-                    <input type="number" id="pin-number" value="2" min="0" max="19" style="width: 70px;">
-                    <select id="pin-value">
-                        <option value="0">LOW</option>
-                        <option value="1">HIGH</option>
-                    </select>
-                    <button onclick="setPin()">Set Pin Value</button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -809,7 +929,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                 .then(data => {
                     addDebugMessage('[SYSTEM] Simulation reset');
                     clearSerial();
-                    resetUIControls();
+                    clearDebug();
                     refreshPins();
 
                     // Restart if it was running
@@ -823,56 +943,21 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                 });
         }
 
-        function resetUIControls() {
-            // Reset PWM sliders to 0
-            const pwmPins = [3, 5, 6, 9, 10, 11];
-            pwmPins.forEach(pin => {
-                const slider = document.querySelector(`input[oninput*="updatePWM(${pin}"]`);
-                if (slider) {
-                    slider.value = 0;
-                    document.getElementById(`pwm-${pin}-value`).textContent = '0';
-                }
-            });
-
-            // Reset Analog sliders to 0
-            for (let i = 0; i < 6; i++) {
-                const slider = document.querySelector(`input[oninput*="updateAnalog(${i}"]`);
-                if (slider) {
-                    slider.value = 0;
-                    document.getElementById(`analog-${i}`).textContent = '0';
-                }
-            }
-
-            // Reset GPIO toggles to OFF
-            const gpioToggles = document.querySelectorAll('.gpio-toggle');
-            gpioToggles.forEach(toggle => {
-                toggle.classList.remove('active');
-            });
-
-            // Reset all LEDs to off
-            const leds = document.querySelectorAll('.led');
-            leds.forEach(led => {
-                led.classList.remove('led-on');
-            });
-        }
-
         function refreshPins() {
             fetch('/api/pins')
                 .then(res => res.json())
                 .then(data => {
-                    // Update table view
-                    let html = '<table><tr><th>Pin</th><th>Mode</th><th>Value</th><th>PWM</th></tr>';
-                    for (let pin in data.pins) {
-                        let p = data.pins[pin];
-                        let mode = p.mode === 0 ? 'INPUT' : (p.mode === 1 ? 'OUTPUT' : 'INPUT_PULLUP');
-                        let value = p.value === 1 ? 'HIGH' : 'LOW';
-                        html += `<tr><td>${pin}</td><td>${mode}</td><td>${value}</td><td>${p.pwm_value}</td></tr>`;
-                    }
-                    html += '</table>';
-                    document.getElementById('pins-status').innerHTML = html;
-
                     // Update visual board
                     updateVisualBoard(data.pins);
+
+                    // Update PWM sliders
+                    updatePWMSliders(data.pins);
+
+                    // Update GPIO toggles
+                    updateGPIOToggles(data.pins);
+
+                    // Update Analog input sliders
+                    updateAnalogInputs(data.pins);
                 });
         }
 
@@ -886,9 +971,18 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                     const pinClass = p.value === 1 ? 'pin high' : 'pin low';
                     const isPWM = [3, 5, 6, 9, 10, 11].includes(i);
                     const label = isPWM ? `D${i} (PWM)` : (i <= 1 ? `D${i} (${i===0?'RX':'TX'})` : `D${i}`);
+
+                    // Add mode badge if pin is configured
+                    let modeBadge = '';
+                    if (p.configured) {
+                        const modeText = p.mode === 0 ? 'INPUT' : (p.mode === 1 ? 'OUTPUT' : 'INPUT_PULLUP');
+                        modeBadge = `<span class="pin-mode-badge">${modeText}</span>`;
+                    }
+
                     digitalHtml += `<div class="${pinClass}" data-pin="${i}">
                         <div class="pin-hole"></div>
                         <span>${label}</span>
+                        ${modeBadge}
                     </div>`;
                 }
             }
@@ -898,9 +992,18 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                     const p = pins[i];
                     const pinClass = p.value === 1 ? 'pin high' : 'pin low';
                     const aPin = i - 14;
+
+                    // Add mode badge if pin is configured
+                    let modeBadge = '';
+                    if (p.configured) {
+                        const modeText = p.mode === 0 ? 'INPUT' : (p.mode === 1 ? 'OUTPUT' : 'INPUT_PULLUP');
+                        modeBadge = `<span class="pin-mode-badge">${modeText}</span>`;
+                    }
+
                     analogHtml += `<div class="${pinClass}" data-pin="${i}">
                         <div class="pin-hole"></div>
                         <span>A${aPin}</span>
+                        ${modeBadge}
                     </div>`;
                 }
             }
@@ -909,20 +1012,115 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             document.getElementById('analog-pins').innerHTML = analogHtml;
         }
 
-        function setPin() {
-            let pin = document.getElementById('pin-number').value;
-            let value = document.getElementById('pin-value').value;
+        function updatePWMSliders(pins) {
+            const pwmPins = [3, 5, 6, 9, 10, 11];
+            pwmPins.forEach(pin => {
+                if (pins[pin]) {
+                    const pwmValue = pins[pin].pwm_value || 0;
+                    const slider = document.getElementById(`pwm-${pin}-slider`);
+                    const valueDisplay = document.getElementById(`pwm-${pin}-value`);
 
-            fetch('/api/pin/set', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin: parseInt(pin), value: parseInt(value) })
-            })
-            .then(res => res.json())
-            .then(data => {
-                addDebugMessage(`[PIN] ${data.message}`);
-                refreshPins();
+                    if (slider) {
+                        slider.value = pwmValue;
+                    }
+                    if (valueDisplay) {
+                        valueDisplay.textContent = pwmValue;
+                    }
+
+                    // Update LED visual feedback
+                    const led = document.getElementById(`led-${pin}`);
+                    if (led) {
+                        const intensity = pwmValue / 255;
+                        if (intensity > 0.1) {
+                            led.classList.add('on');
+                            led.style.opacity = Math.max(0.3, intensity);
+                        } else {
+                            led.classList.remove('on');
+                            led.style.opacity = 1;
+                        }
+                    }
+                }
             });
+        }
+
+        function updateGPIOToggles(pins) {
+            for (let i = 0; i <= 13; i++) {
+                if (pins[i]) {
+                    const toggle = document.querySelector(`[data-pin="${i}"] .gpio-toggle`);
+                    const gpioItem = document.querySelector(`[data-pin="${i}"]`);
+                    const led = document.getElementById(`led-${i}`);
+                    const pinValue = pins[i].value;
+                    const pinMode = pins[i].mode; // 0=INPUT, 1=OUTPUT, 2=INPUT_PULLUP
+                    const pwmValue = pins[i].pwm_value || 0;
+                    const configured = pins[i].configured || false;
+                    const isPWMPin = [3, 5, 6, 9, 10, 11].includes(i);
+
+                    if (toggle && gpioItem) {
+                        // Disable toggle if pin is not configured OR is OUTPUT (controlled by Arduino)
+                        if (!configured) {
+                            // Pin not configured - disable (not connected logically)
+                            toggle.classList.add('disabled');
+                            gpioItem.classList.add('disabled');
+                            toggle.dataset.disabled = 'true';
+                        } else if (pinMode === 1) {
+                            // OUTPUT mode - Arduino controls it, disable user control
+                            toggle.classList.add('disabled');
+                            gpioItem.classList.add('disabled');
+                            toggle.dataset.disabled = 'true';
+                        } else {
+                            // INPUT or INPUT_PULLUP configured - enable user control to simulate sensors/buttons
+                            toggle.classList.remove('disabled');
+                            gpioItem.classList.remove('disabled');
+                            toggle.dataset.disabled = 'false';
+                        }
+
+                        // Update active state for all pins
+                        if (pinValue === 1) {
+                            toggle.classList.add('active');
+                        } else {
+                            toggle.classList.remove('active');
+                        }
+                    }
+
+                    // Update LED
+                    if (led) {
+                        // Update LED if PWM is not active
+                        if (!isPWMPin || pwmValue === 0) {
+                            if (pinValue === 1) {
+                                led.classList.add('on');
+                                led.style.opacity = 1;
+                            } else {
+                                led.classList.remove('on');
+                                led.style.opacity = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateAnalogInputs(pins) {
+            // Analog pins are 14-19 (A0-A5)
+            for (let i = 0; i < 6; i++) {
+                const pinIndex = 14 + i;
+                if (pins[pinIndex]) {
+                    const analogInput = document.getElementById(`analog-input-${i}`);
+                    const analogSlider = document.getElementById(`analog-slider-${i}`);
+                    const configured = pins[pinIndex].configured || false;
+
+                    if (analogInput && analogSlider) {
+                        if (!configured) {
+                            // Pin not configured - disable
+                            analogInput.classList.add('disabled');
+                            analogSlider.disabled = true;
+                        } else {
+                            // Pin configured - enable
+                            analogInput.classList.remove('disabled');
+                            analogSlider.disabled = false;
+                        }
+                    }
+                }
+            }
         }
 
         function refreshSerial() {
@@ -978,13 +1176,21 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             })
             .then(res => res.json())
             .then(data => {
-                addDebugMessage('[TX] ' + input);
+                addUARTMessage('[TX] ' + input);
                 document.getElementById('serial-input').value = '';
             });
         }
 
         // GPIO Control Functions
         function toggleGPIO(pin) {
+            const toggle = document.querySelector(`[data-pin="${pin}"] .gpio-toggle`);
+
+            // Don't allow toggling if disabled (OUTPUT mode or PWM active)
+            if (toggle && toggle.dataset.disabled === 'true') {
+                addDebugMessage(`[GPIO] Pin D${pin} is controlled by Arduino (OUTPUT or PWM)`);
+                return;
+            }
+
             fetch('/api/pin/set', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -993,63 +1199,14 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             .then(res => res.json())
             .then(data => {
                 addDebugMessage(`[GPIO] ${data.message}`);
-                refreshPins();
-                updateLED(pin);
+                refreshPins(); // This will update toggles, LEDs, and all visuals
             })
             .catch(err => {
-                // Fallback: manual toggle UI only
-                const toggle = document.querySelector(`[data-pin="${pin}"] .gpio-toggle`);
-                toggle.classList.toggle('active');
-                updateLED(pin);
+                addDebugMessage('[ERROR] Failed to toggle GPIO');
+                console.error('GPIO toggle error:', err);
             });
         }
 
-        function updateLED(pin) {
-            const led = document.getElementById(`led-${pin}`);
-            if (led) {
-                const toggle = document.querySelector(`[data-pin="${pin}"] .gpio-toggle`);
-                if (toggle && toggle.classList.contains('active')) {
-                    led.classList.add('on');
-                } else {
-                    led.classList.remove('on');
-                }
-            }
-        }
-
-        // PWM Control Functions
-        function updatePWM(pin, value) {
-            document.getElementById(`pwm-${pin}-value`).textContent = value;
-
-            // Send PWM value to Arduino (if analogWrite API exists)
-            fetch('/api/pwm/set', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin: pin, value: parseInt(value) })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const percentage = Math.round(value / 255 * 100);
-                addDebugMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
-            })
-            .catch(err => {
-                // Fallback: just update UI
-                const percentage = Math.round(value / 255 * 100);
-                addDebugMessage(`[PWM] Pin D${pin} set to ${value} (${percentage}%)`);
-            });
-
-            // Visual feedback for LED if available
-            const led = document.getElementById(`led-${pin}`);
-            if (led) {
-                const intensity = value / 255;
-                if (intensity > 0.1) {
-                    led.classList.add('on');
-                    led.style.opacity = Math.max(0.3, intensity);
-                } else {
-                    led.classList.remove('on');
-                    led.style.opacity = 1;
-                }
-            }
-        }
 
         // Analog Input Functions
         function updateAnalog(pin, value) {
@@ -1073,14 +1230,25 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             });
         }
 
+        // Initialize GPIO toggle handlers
+        function initGPIOToggles() {
+            for (let i = 0; i <= 13; i++) {
+                const toggle = document.querySelector(`[data-pin="${i}"] .gpio-toggle`);
+                if (toggle) {
+                    toggle.onclick = () => toggleGPIO(i);
+                }
+            }
+        }
+
         // Start auto-refresh on page load
         window.onload = () => {
+            initGPIOToggles();
             refreshPins();
             addDebugMessage('[SYSTEM] Arduino Emulator ready');
-            addDebugMessage('[INFO] Use GPIO toggles to control pins');
-            addDebugMessage('[INFO] Use PWM sliders to set analog output');
+            addDebugMessage('[INFO] Only pins configured with pinMode() are enabled');
+            addDebugMessage('[INFO] Use GPIO toggles to simulate INPUT pins (buttons, sensors)');
+            addDebugMessage('[INFO] OUTPUT pins and PWM are controlled by Arduino code');
             addDebugMessage('[INFO] Use Analog sliders to simulate sensor input');
-            setInterval(refreshSerial, 100);
         };
     </script>
 </body>

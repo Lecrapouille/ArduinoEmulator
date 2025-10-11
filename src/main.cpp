@@ -48,7 +48,7 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             cxxopts::value<int>()->default_value("8080"))(
             "f,frequency",
             "Arduino loop frequency in Hz (1-100)",
-            cxxopts::value<int>()->default_value("100"))(
+            cxxopts::value<int>()->default_value("1000"))(
             "h,help", "Show this help message");
 
         options.positional_help("[OPTIONS]");
@@ -85,9 +85,9 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
         }
 
         // Validate frequency range
-        if (config.frequency < 1 || config.frequency > 100)
+        if (config.frequency < 1 || config.frequency > 1000)
         {
-            std::cerr << "Error: Frequency must be between 1 and 100 Hz\n";
+            std::cerr << "Error: Frequency must be between 1 and 1000 Hz\n";
             return std::nullopt;
         }
 
