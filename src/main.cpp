@@ -1,8 +1,8 @@
 /**
- * @file main.cpp
- * @brief Main entry point for Arduino Emulator with CLI
- * @author Lecrapouille
- * @copyright MIT License
+//! \file main.cpp
+//! \brief Main entry point for Arduino Emulator with CLI
+//! \author Lecrapouille
+//! \copyright MIT License
  */
 
 #include "WebServer.hpp"
@@ -14,23 +14,23 @@
 #include <optional>
 #include <string>
 
-/**
- * @brief Configuration structure for the Arduino Emulator server
- */
+// ----------------------------------------------------------------------------
+//! \brief Configuration structure for the Arduino Emulator server
+// ----------------------------------------------------------------------------
 struct Config
 {
     std::string address;
-    int port;
-    int frequency;
+    uint16_t port;
+    size_t frequency;
 };
 
-/**
- * @brief Parse command-line arguments
- * @param argc Number of arguments
- * @param argv Array of argument strings
- * @return Configuration if successful, std::nullopt if help was shown or error
- * occurred
- */
+// ----------------------------------------------------------------------------
+//! \brief Parse command-line arguments
+//! \param argc Number of arguments
+//! \param argv Array of argument strings
+//! \return Configuration if successful, std::nullopt if help was shown or error
+//! occurred
+// ----------------------------------------------------------------------------
 static std::optional<Config> parseCommandLine(int argc, char* argv[])
 {
     try
@@ -45,10 +45,10 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
             cxxopts::value<std::string>()->default_value("0.0.0.0"))(
             "p,port",
             "Server port",
-            cxxopts::value<int>()->default_value("8080"))(
+            cxxopts::value<uint16_t>()->default_value("8080"))(
             "f,frequency",
             "Web interface refresh rate in Hz (1-100, default: 100)",
-            cxxopts::value<int>()->default_value("100"))(
+            cxxopts::value<size_t>()->default_value("100"))(
             "h,help", "Show this help message");
 
         options.positional_help("[OPTIONS]");
@@ -74,15 +74,8 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
         // Get parsed values
         Config config;
         config.address = result["address"].as<std::string>();
-        config.port = result["port"].as<int>();
-        config.frequency = result["frequency"].as<int>();
-
-        // Validate port range
-        if (config.port < 1 || config.port > 65535)
-        {
-            std::cerr << "Error: Port must be between 1 and 65535\n";
-            return std::nullopt;
-        }
+        config.port = result["port"].as<uint16_t>();
+        config.frequency = result["frequency"].as<size_t>();
 
         // Validate frequency range
         if (config.frequency < 1 || config.frequency > 100)
@@ -100,6 +93,7 @@ static std::optional<Config> parseCommandLine(int argc, char* argv[])
     }
 }
 
+// ----------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
     // Parse command-line arguments
@@ -113,9 +107,10 @@ int main(int argc, char* argv[])
     std::cout << "Arduino Emulator Web Interface\n";
     std::cout << "Server address: " << config->address << "\n";
     std::cout << "Server port: " << config->port << "\n";
-    std::cout << "Web refresh rate: " << config->frequency << " Hz ("
+    std::cout << "Arduino loop rate: " << config->frequency << " Hz ("
               << (1000 / config->frequency) << " ms)\n";
-    std::cout << "Note: loop() runs continuously in real-time\n";
+    std::cout << "Web client poll rate: " << (2 * config->frequency) << " Hz ("
+              << (1000 / (2 * config->frequency)) << " ms)\n";
     std::cout << "========================================\n";
     std::cout << "Starting server...\n";
 

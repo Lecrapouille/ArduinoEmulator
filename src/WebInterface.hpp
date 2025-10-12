@@ -1,6 +1,13 @@
 #pragma once
 
-constexpr const char* WEB_INTERFACE_HTML = R"HTML(
+#include <string>
+
+namespace webinterface
+{
+
+inline std::string loadHTMLContent()
+{
+    return R"HTML(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -864,13 +871,45 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
         // Auto-refresh rate configurable via CLI (-f option)
         const REFRESH_INTERVAL_MS = ##REFRESH_INTERVAL##;
         let autoRefreshInterval = null;
+        let lastTick = 0;
+        let isRefreshing = false;
+
+        function checkForUpdates() {
+            // Skip if previous request is still running
+            if (isRefreshing) {
+                return;
+            }
+
+            isRefreshing = true;
+
+            // Fast lightweight check for state changes
+            fetch('/api/tick')
+                .then(res => res.json())
+                .then(data => {
+                    const currentTick = data.tick;
+
+                    // Only fetch full data if Arduino loop has executed
+                    if (currentTick !== lastTick) {
+                        lastTick = currentTick;
+                        return Promise.all([
+                            refreshPins(),
+                            refreshSerial()
+                        ]);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error checking tick:', err);
+                })
+                .finally(() => {
+                    isRefreshing = false;
+                });
+        }
 
         function startAutoRefresh() {
             if (autoRefreshInterval === null) {
-                autoRefreshInterval = setInterval(() => {
-                    refreshPins();
-                    refreshSerial();
-                }, REFRESH_INTERVAL_MS);
+                autoRefreshInterval = setInterval(checkForUpdates, REFRESH_INTERVAL_MS);
+                // Immediate first check
+                checkForUpdates();
             }
         }
 
@@ -878,6 +917,7 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
             if (autoRefreshInterval !== null) {
                 clearInterval(autoRefreshInterval);
                 autoRefreshInterval = null;
+                isRefreshing = false;
             }
         }
 
@@ -932,6 +972,18 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
                     clearSerial();
                     clearDebug();
                     refreshPins();
+
+                    // Reset all analog sliders to 0
+                    for (let i = 0; i < 6; i++) {
+                        const slider = document.getElementById(`analog-slider-${i}`);
+                        const valueDisplay = document.getElementById(`analog-${i}`);
+                        if (slider) {
+                            slider.value = 0;
+                        }
+                        if (valueDisplay) {
+                            valueDisplay.textContent = '0';
+                        }
+                    }
 
                     // Restart if it was running
                     if (wasRunning) {
@@ -1255,3 +1307,5 @@ constexpr const char* WEB_INTERFACE_HTML = R"HTML(
     </script>
 </body>
 </html>)HTML";
+}
+} // namespace webinterface

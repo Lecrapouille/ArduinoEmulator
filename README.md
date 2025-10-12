@@ -4,6 +4,10 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 
 > **Note:** Currently supports Arduino Uno only (20 pins: D0-D13, A0-A5)
 
+![web interface](doc/pics/web-interface.png)
+
+*Screenshot of the web interface launched from a Linux console (appearance may change as the project evolves)*
+
 ---
 
 ## ✨ Features
