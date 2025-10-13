@@ -801,6 +801,13 @@ public:
     // ------------------------------------------------------------------------
     int analogRead(int p_pin)
     {
+        // On real Arduino, analogRead(0) reads A0, analogRead(1) reads A1, etc.
+        // Convert analog pin numbers 0-5 to their actual pin numbers (14-19)
+        if (p_pin >= 0 && p_pin <= 5)
+        {
+            p_pin += 14; // A0 = 14, A1 = 15, ..., A5 = 19
+        }
+
         if (pins.find(p_pin) != pins.end())
         {
             // Analog pins don't require pinMode() - mark as configured on first
