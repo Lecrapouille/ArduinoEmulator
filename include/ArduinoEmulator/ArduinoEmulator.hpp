@@ -52,6 +52,12 @@ constexpr int DEFAULT = 0;  ///< Default analog reference
 constexpr int INTERNAL = 1; ///< Internal analog reference
 constexpr int EXTERNAL = 2; ///< External analog reference
 
+// Serial print formats
+constexpr int DEC = 10; ///< Decimal format (base 10)
+constexpr int HEX = 16; ///< Hexadecimal format (base 16)
+constexpr int OCT = 8;  ///< Octal format (base 8)
+constexpr int BIN = 2;  ///< Binary format (base 2)
+
 // Type definitions
 using boolean = bool;
 using byte = uint8_t;
@@ -294,6 +300,20 @@ public:
     }
 
     // ------------------------------------------------------------------------
+    //! \brief Write a single byte to serial output
+    //! \param p_byte Byte to write
+    //!
+    //! Writes the raw byte value (not as ASCII digits like print()).
+    // ------------------------------------------------------------------------
+    void write(uint8_t p_byte)
+    {
+        if (!m_enabled)
+            return;
+        std::lock_guard<std::mutex> lock(m_buffer_mutex);
+        m_output_buffer.push(static_cast<char>(p_byte));
+    }
+
+    // ------------------------------------------------------------------------
     //! \brief Check if data is available to read
     //! \return Number of bytes available in the input buffer
     // ------------------------------------------------------------------------
@@ -350,6 +370,18 @@ public:
             m_output_buffer.pop();
         }
         return result;
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Check if Serial is ready
+    //! \return Always true in the emulator (Serial is always ready)
+    //!
+    //! On real Arduino (e.g., Leonardo), this waits for USB serial connection.
+    //! In the emulator, we always return true to avoid blocking.
+    // ------------------------------------------------------------------------
+    operator bool() const
+    {
+        return true;
     }
 
 private:
@@ -1665,6 +1697,38 @@ inline byte lowByte(int p_value)
 // ============================================================================
 class SerialClass
 {
+private:
+
+    // ------------------------------------------------------------------------
+    //! \brief Convert a number to a string in the specified base
+    //! \param p_val Value to convert
+    //! \param p_base Base (BIN=2, OCT=8, DEC=10, HEX=16)
+    //! \return String representation
+    // ------------------------------------------------------------------------
+    std::string numberToBase(long p_val, int p_base) const
+    {
+        if (p_val == 0)
+            return "0";
+
+        bool negative = p_val < 0;
+        unsigned long val = negative ? static_cast<unsigned long>(-p_val)
+                                     : static_cast<unsigned long>(p_val);
+        unsigned int base = static_cast<unsigned int>(p_base);
+        std::string result;
+        const char* digits = "0123456789ABCDEF";
+
+        while (val > 0)
+        {
+            result = digits[val % base] + result;
+            val /= base;
+        }
+
+        if (negative && p_base == 10)
+            result = "-" + result;
+
+        return result;
+    }
+
 public:
 
     // ------------------------------------------------------------------------
@@ -1714,6 +1778,37 @@ public:
     }
 
     // ------------------------------------------------------------------------
+    //! \brief Print an integer in a specific format without newline
+    //! \param p_val Integer to print
+    //! \param p_format Format (DEC, HEX, OCT, BIN)
+    // ------------------------------------------------------------------------
+    void print(int p_val, int p_format) const
+    {
+        std::string str = numberToBase(p_val, p_format);
+        arduino_sim.getSerial().print(str.c_str());
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Print a long in a specific format without newline
+    //! \param p_val Long to print
+    //! \param p_format Format (DEC, HEX, OCT, BIN)
+    // ------------------------------------------------------------------------
+    void print(long p_val, int p_format) const
+    {
+        std::string str = numberToBase(p_val, p_format);
+        arduino_sim.getSerial().print(str.c_str());
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Write a single byte to serial output
+    //! \param p_byte Byte to write (raw value, not ASCII)
+    // ------------------------------------------------------------------------
+    void write(uint8_t p_byte) const
+    {
+        arduino_sim.getSerial().write(p_byte);
+    }
+
+    // ------------------------------------------------------------------------
     //! \brief Print a string with newline
     //! \param p_str Null-terminated string to print
     // ------------------------------------------------------------------------
@@ -1758,6 +1853,37 @@ public:
     void println() const
     {
         arduino_sim.getSerial().println();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Print an integer in a specific format with newline
+    //! \param p_val Integer to print
+    //! \param p_format Format (DEC, HEX, OCT, BIN)
+    // ------------------------------------------------------------------------
+    void println(int p_val, int p_format) const
+    {
+        print(p_val, p_format);
+        arduino_sim.getSerial().println();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Print a long in a specific format with newline
+    //! \param p_val Long to print
+    //! \param p_format Format (DEC, HEX, OCT, BIN)
+    // ------------------------------------------------------------------------
+    void println(long p_val, int p_format) const
+    {
+        print(p_val, p_format);
+        arduino_sim.getSerial().println();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Check if Serial is ready (for compatibility with Leonardo, etc.)
+    //! \return Always true in the emulator
+    // ------------------------------------------------------------------------
+    operator bool() const
+    {
+        return true;
     }
 
     // ------------------------------------------------------------------------

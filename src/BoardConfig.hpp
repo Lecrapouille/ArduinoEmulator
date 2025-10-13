@@ -50,7 +50,7 @@ struct BoardConfig
         std::sort(analog_input_pins.begin(), analog_input_pins.end());
 
         // Compute counts
-        analog_pins = analog_input_pins.size();
+        analog_pins = static_cast<int>(analog_input_pins.size());
 
         if (!analog_input_pins.empty())
         {
