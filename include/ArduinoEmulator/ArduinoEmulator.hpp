@@ -107,13 +107,19 @@ public:
     //! \brief Write a PWM value to the pin.
     //! \param p_val PWM value (0-255).
     //!
-    //! Only works if the pin is PWM-capable and configured as OUTPUT.
-    //! The digital value is set to HIGH if p_val > 127, otherwise LOW.
+    //! On real Arduino, analogWrite() automatically sets the pin to OUTPUT
+    //! mode. The digital value is set to HIGH if p_val > 127, otherwise LOW.
     // ------------------------------------------------------------------------
     void analogWrite(int p_val)
     {
-        if (pwm_capable && mode == OUTPUT)
+        if (pwm_capable)
         {
+            // Auto-configure as OUTPUT (like real Arduino does)
+            if (mode != OUTPUT)
+            {
+                mode = OUTPUT;
+                configured = true;
+            }
             pwm_value = p_val;
             value = (p_val > 127) ? HIGH : LOW;
         }
