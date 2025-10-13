@@ -22,8 +22,12 @@ extern void loop();
 // ----------------------------------------------------------------------------
 WebServer::WebServer(std::string const& address,
                      uint16_t port,
-                     size_t refresh_frequency)
-    : m_address(address), m_port(port), m_refresh_frequency(refresh_frequency)
+                     size_t refresh_frequency,
+                     BoardConfig const& board)
+    : m_address(address),
+      m_port(port),
+      m_refresh_frequency(refresh_frequency),
+      m_board(board)
 {
     if (m_refresh_frequency < 1)
         m_refresh_frequency = 1;
@@ -86,6 +90,11 @@ void WebServer::setupRoutes()
     m_server.Get("/api/tick",
                  [this](httplib::Request const& req, httplib::Response& res)
                  { handleGetTick(req, res); });
+
+    // Board configuration
+    m_server.Get("/api/board",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetBoard(req, res); });
 }
 
 // ----------------------------------------------------------------------------
@@ -456,5 +465,24 @@ void WebServer::handleGetTick(httplib::Request const&,
 {
     nlohmann::json response;
     response["tick"] = m_tick_counter.load();
+    res.set_content(response.dump(), "application/json");
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::handleGetBoard(httplib::Request const&,
+                               httplib::Response& res) const
+{
+    nlohmann::json response;
+
+    // Board information from configuration
+    response["name"] = m_board.name;
+    response["total_pins"] = m_board.total_pins;
+    response["digital_pins"] = m_board.digital_pins;
+    response["analog_pins"] = m_board.analog_pins;
+    response["pwm_pins"] = m_board.pwm_pins;
+    response["analog_input_pins"] = m_board.analog_input_pins;
+    response["pin_mapping"] = m_board.pin_mapping;
+    response["analog_only_pins"] = m_board.analog_only_pins;
+
     res.set_content(response.dump(), "application/json");
 }

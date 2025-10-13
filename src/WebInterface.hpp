@@ -458,6 +458,18 @@ inline std::string loadHTMLContent()
             color: #e74c3c;
         }
 
+        .analog-input.analog-only {
+            opacity: 0.7;
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .analog-input.analog-only span:first-child {
+            color: #999;
+            font-style: italic;
+        }
+
         /* LED Indicators */
         .led-grid {
             display: grid;
@@ -572,7 +584,7 @@ inline std::string loadHTMLContent()
         <div class="simulator-layout">
             <!-- Arduino Board Panel -->
             <div class="panel">
-                <h2>🎛️ Arduino Uno Board</h2>
+                <h2>🎛️ <span id="board-name">Arduino Uno</span> Board</h2>
                 <div class="arduino-board">
                     <div class="pin-grid">
                         <div class="pin-row" id="digital-pins"></div>
@@ -585,62 +597,7 @@ inline std::string loadHTMLContent()
             <div class="panel">
                 <h2>💡 LED Indicators</h2>
                 <div class="led-grid">
-                    <div>
-                        <div class="led" id="led-0"></div>
-                        <div class="led-label">D0</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-1"></div>
-                        <div class="led-label">D1</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-2"></div>
-                        <div class="led-label">D2</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-3"></div>
-                        <div class="led-label">D3</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-4"></div>
-                        <div class="led-label">D4</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-5"></div>
-                        <div class="led-label">D5</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-6"></div>
-                        <div class="led-label">D6</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-7"></div>
-                        <div class="led-label">D7</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-8"></div>
-                        <div class="led-label">D8</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-9"></div>
-                        <div class="led-label">D9</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-10"></div>
-                        <div class="led-label">D10</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-11"></div>
-                        <div class="led-label">D11</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-12"></div>
-                        <div class="led-label">D12</div>
-                    </div>
-                    <div>
-                        <div class="led" id="led-13"></div>
-                        <div class="led-label">D13</div>
-                    </div>
+                    <!-- Generated dynamically by JavaScript -->
                 </div>
             </div>
 
@@ -720,139 +677,20 @@ inline std::string loadHTMLContent()
             <div class="panel">
                 <h2>📍 GPIO Controls</h2>
                 <div class="gpio-controls">
-                    <div class="gpio-item" data-pin="0">
-                        <span>Pin D0 (RX)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="1">
-                        <span>Pin D1 (TX)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="2">
-                        <span>Pin D2</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="3">
-                        <span>Pin D3 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="4">
-                        <span>Pin D4</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="5">
-                        <span>Pin D5 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="6">
-                        <span>Pin D6 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="7">
-                        <span>Pin D7</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="8">
-                        <span>Pin D8</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="9">
-                        <span>Pin D9 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="10">
-                        <span>Pin D10 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="11">
-                        <span>Pin D11 (PWM)</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="12">
-                        <span>Pin D12</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
-                    <div class="gpio-item" data-pin="13">
-                        <span>Pin D13</span>
-                        <div class="gpio-toggle"></div>
-                    </div>
+                    <!-- Generated dynamically by JavaScript -->
                 </div>
             </div>
 
             <!-- PWM Controls Panel -->
             <div class="panel">
                 <h2>⚡ PWM Controls</h2>
-                <div class="pwm-control">
-                    <span>D3:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-3-slider" disabled>
-                    <span class="pwm-value" id="pwm-3-value">0</span>
-                </div>
-                <div class="pwm-control">
-                    <span>D5:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-5-slider" disabled>
-                    <span class="pwm-value" id="pwm-5-value">0</span>
-                </div>
-                <div class="pwm-control">
-                    <span>D6:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-6-slider" disabled>
-                    <span class="pwm-value" id="pwm-6-value">0</span>
-                </div>
-                <div class="pwm-control">
-                    <span>D9:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-9-slider" disabled>
-                    <span class="pwm-value" id="pwm-9-value">0</span>
-                </div>
-                <div class="pwm-control">
-                    <span>D10:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-10-slider" disabled>
-                    <span class="pwm-value" id="pwm-10-value">0</span>
-                </div>
-                <div class="pwm-control">
-                    <span>D11:</span>
-                    <input type="range" class="pwm-slider" min="0" max="255" value="0" id="pwm-11-slider" disabled>
-                    <span class="pwm-value" id="pwm-11-value">0</span>
-                </div>
+                <!-- Generated dynamically by JavaScript -->
             </div>
 
             <!-- Analog Inputs Panel -->
             <div class="panel">
                 <h2>📊 Analog Inputs</h2>
-                <div class="analog-input" id="analog-input-0">
-                    <span>A0:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-0" min="0" max="1023" value="0"
-                        oninput="updateAnalog(0, this.value)">
-                    <span class="analog-value" id="analog-0">0</span>
-                </div>
-                <div class="analog-input" id="analog-input-1">
-                    <span>A1:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-1" min="0" max="1023" value="0"
-                        oninput="updateAnalog(1, this.value)">
-                    <span class="analog-value" id="analog-1">0</span>
-                </div>
-                <div class="analog-input" id="analog-input-2">
-                    <span>A2:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-2" min="0" max="1023" value="0"
-                        oninput="updateAnalog(2, this.value)">
-                    <span class="analog-value" id="analog-2">0</span>
-                </div>
-                <div class="analog-input" id="analog-input-3">
-                    <span>A3:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-3" min="0" max="1023" value="0"
-                        oninput="updateAnalog(3, this.value)">
-                    <span class="analog-value" id="analog-3">0</span>
-                </div>
-                <div class="analog-input" id="analog-input-4">
-                    <span>A4:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-4" min="0" max="1023" value="0"
-                        oninput="updateAnalog(4, this.value)">
-                    <span class="analog-value" id="analog-4">0</span>
-                </div>
-                <div class="analog-input" id="analog-input-5">
-                    <span>A5:</span>
-                    <input type="range" class="analog-slider" id="analog-slider-5" min="0" max="1023" value="0"
-                        oninput="updateAnalog(5, this.value)">
-                    <span class="analog-value" id="analog-5">0</span>
-                </div>
+                <!-- Generated dynamically by JavaScript -->
             </div>
 
             <!-- Debug Console Panel - Full Width -->
@@ -873,6 +711,18 @@ inline std::string loadHTMLContent()
         let autoRefreshInterval = null;
         let lastTick = 0;
         let isRefreshing = false;
+
+        // Board configuration (loaded dynamically)
+        let boardConfig = {
+            name: "Arduino Uno",
+            total_pins: 20,
+            digital_pins: 14,
+            analog_pins: 6,
+            pwm_pins: [3, 5, 6, 9, 10, 11],
+            analog_input_pins: [14, 15, 16, 17, 18, 19],
+            pin_mapping: {},
+            analog_only_pins: []
+        };
 
         function checkForUpdates() {
             // Skip if previous request is still running
@@ -974,7 +824,7 @@ inline std::string loadHTMLContent()
                     refreshPins();
 
                     // Reset all analog sliders to 0
-                    for (let i = 0; i < 6; i++) {
+                    for (let i = 0; i < boardConfig.analog_pins; i++) {
                         const slider = document.getElementById(`analog-slider-${i}`);
                         const valueDisplay = document.getElementById(`analog-${i}`);
                         if (slider) {
@@ -1018,11 +868,11 @@ inline std::string loadHTMLContent()
             let digitalHtml = '';
             let analogHtml = '';
 
-            for (let i = 0; i <= 13; i++) {
+            for (let i = 0; i < boardConfig.digital_pins; i++) {
                 if (pins[i]) {
                     const p = pins[i];
                     const pinClass = p.value === 1 ? 'pin high' : 'pin low';
-                    const isPWM = [3, 5, 6, 9, 10, 11].includes(i);
+                    const isPWM = boardConfig.pwm_pins.includes(i);
                     const label = isPWM ? `D${i} (PWM)` : (i <= 1 ? `D${i} (${i===0?'RX':'TX'})` : `D${i}`);
 
                     // Add mode badge if pin is configured
@@ -1040,11 +890,10 @@ inline std::string loadHTMLContent()
                 }
             }
 
-            for (let i = 14; i <= 19; i++) {
-                if (pins[i]) {
-                    const p = pins[i];
+            boardConfig.analog_input_pins.forEach((pinIndex, i) => {
+                if (pins[pinIndex]) {
+                    const p = pins[pinIndex];
                     const pinClass = p.value === 1 ? 'pin high' : 'pin low';
-                    const aPin = i - 14;
 
                     // Add mode badge if pin is configured
                     let modeBadge = '';
@@ -1053,21 +902,20 @@ inline std::string loadHTMLContent()
                         modeBadge = `<span class="pin-mode-badge">${modeText}</span>`;
                     }
 
-                    analogHtml += `<div class="${pinClass}" data-pin="${i}">
+                    analogHtml += `<div class="${pinClass}" data-pin="${pinIndex}">
                         <div class="pin-hole"></div>
-                        <span>A${aPin}</span>
+                        <span>A${i}</span>
                         ${modeBadge}
                     </div>`;
                 }
-            }
+            });
 
             document.getElementById('digital-pins').innerHTML = digitalHtml;
             document.getElementById('analog-pins').innerHTML = analogHtml;
         }
 
         function updatePWMSliders(pins) {
-            const pwmPins = [3, 5, 6, 9, 10, 11];
-            pwmPins.forEach(pin => {
+            boardConfig.pwm_pins.forEach(pin => {
                 if (pins[pin]) {
                     const pwmValue = pins[pin].pwm_value || 0;
                     const slider = document.getElementById(`pwm-${pin}-slider`);
@@ -1097,7 +945,7 @@ inline std::string loadHTMLContent()
         }
 
         function updateGPIOToggles(pins) {
-            for (let i = 0; i <= 13; i++) {
+            for (let i = 0; i < boardConfig.digital_pins; i++) {
                 if (pins[i]) {
                     const toggle = document.querySelector(`[data-pin="${i}"] .gpio-toggle`);
                     const gpioItem = document.querySelector(`[data-pin="${i}"]`);
@@ -1106,7 +954,7 @@ inline std::string loadHTMLContent()
                     const pinMode = pins[i].mode; // 0=INPUT, 1=OUTPUT, 2=INPUT_PULLUP
                     const pwmValue = pins[i].pwm_value || 0;
                     const configured = pins[i].configured || false;
-                    const isPWMPin = [3, 5, 6, 9, 10, 11].includes(i);
+                    const isPWMPin = boardConfig.pwm_pins.includes(i);
 
                     if (toggle && gpioItem) {
                         // Disable toggle if pin is not configured OR is OUTPUT (controlled by Arduino)
@@ -1153,9 +1001,8 @@ inline std::string loadHTMLContent()
         }
 
         function updateAnalogInputs(pins) {
-            // Analog pins are 14-19 (A0-A5)
-            for (let i = 0; i < 6; i++) {
-                const pinIndex = 14 + i;
+            // Analog pins based on board configuration
+            boardConfig.analog_input_pins.forEach((pinIndex, i) => {
                 if (pins[pinIndex]) {
                     const analogInput = document.getElementById(`analog-input-${i}`);
                     const analogSlider = document.getElementById(`analog-slider-${i}`);
@@ -1173,7 +1020,7 @@ inline std::string loadHTMLContent()
                         }
                     }
                 }
-            }
+            });
         }
 
         function refreshSerial() {
@@ -1276,6 +1123,7 @@ inline std::string loadHTMLContent()
             .then(res => res.json())
             .then(data => {
                 addDebugMessage(`[ANALOG] A${pin} = ${value} (${voltage}V)`);
+                refreshPins();
             })
             .catch(err => {
                 // Fallback: just log
@@ -1285,7 +1133,7 @@ inline std::string loadHTMLContent()
 
         // Initialize GPIO toggle handlers
         function initGPIOToggles() {
-            for (let i = 0; i <= 13; i++) {
+            for (let i = 0; i < boardConfig.digital_pins; i++) {
                 const toggle = document.querySelector(`[data-pin="${i}"] .gpio-toggle`);
                 if (toggle) {
                     toggle.onclick = () => toggleGPIO(i);
@@ -1293,10 +1141,154 @@ inline std::string loadHTMLContent()
             }
         }
 
+        // Generate LED panel dynamically
+        function generateLEDPanel() {
+            const ledGrid = document.querySelector('.led-grid');
+            ledGrid.innerHTML = '';
+
+            for (let i = 0; i < boardConfig.digital_pins; i++) {
+                const ledItem = document.createElement('div');
+                ledItem.innerHTML = `
+                    <div class="led" id="led-${i}"></div>
+                    <div class="led-label">D${i}</div>
+                `;
+                ledGrid.appendChild(ledItem);
+            }
+        }
+
+        // Generate GPIO Controls panel dynamically
+        function generateGPIOPanel() {
+            const gpioControls = document.querySelector('.gpio-controls');
+            gpioControls.innerHTML = '';
+
+            for (let i = 0; i < boardConfig.digital_pins; i++) {
+                const isPWM = boardConfig.pwm_pins.includes(i);
+                const label = isPWM ? `Pin D${i} (PWM)` :
+                             (i === 0 ? `Pin D${i} (RX)` :
+                             (i === 1 ? `Pin D${i} (TX)` : `Pin D${i}`));
+
+                const gpioItem = document.createElement('div');
+                gpioItem.className = 'gpio-item';
+                gpioItem.dataset.pin = i;
+                gpioItem.innerHTML = `
+                    <span>${label}</span>
+                    <div class="gpio-toggle"></div>
+                `;
+                gpioControls.appendChild(gpioItem);
+            }
+        }
+
+        // Generate PWM Controls panel dynamically
+        function generatePWMPanel() {
+            // Find the PWM panel by its h2 text
+            const panels = document.querySelectorAll('.panel');
+            let pwmPanel = null;
+            for (const panel of panels) {
+                const h2 = panel.querySelector('h2');
+                if (h2 && h2.textContent.includes('PWM Controls')) {
+                    pwmPanel = panel;
+                    break;
+                }
+            }
+
+            if (!pwmPanel) return;
+
+            boardConfig.pwm_pins.forEach(pin => {
+                const pwmControl = document.createElement('div');
+                pwmControl.className = 'pwm-control';
+                pwmControl.innerHTML = `
+                    <span>D${pin}:</span>
+                    <input type="range" class="pwm-slider" min="0" max="255" value="0"
+                           id="pwm-${pin}-slider" disabled>
+                    <span class="pwm-value" id="pwm-${pin}-value">0</span>
+                `;
+                pwmPanel.appendChild(pwmControl);
+            });
+        }
+
+        // Generate Analog Inputs panel dynamically
+        function generateAnalogPanel() {
+            // Find the Analog panel by its h2 text
+            const panels = document.querySelectorAll('.panel');
+            let analogPanel = null;
+            for (const panel of panels) {
+                const h2 = panel.querySelector('h2');
+                if (h2 && h2.textContent.includes('Analog Inputs')) {
+                    analogPanel = panel;
+                    break;
+                }
+            }
+
+            if (!analogPanel) return;
+
+            const numAnalogPins = boardConfig.analog_input_pins.length;
+            for (let i = 0; i < numAnalogPins; i++) {
+                const pinNumber = boardConfig.analog_input_pins[i];
+                const isAnalogOnly = boardConfig.analog_only_pins.includes(pinNumber);
+
+                const analogInput = document.createElement('div');
+                analogInput.className = 'analog-input';
+                if (isAnalogOnly) {
+                    analogInput.classList.add('analog-only');
+                }
+                analogInput.id = `analog-input-${i}`;
+
+                const label = isAnalogOnly ? `A${i} (Analog-only):` : `A${i}:`;
+
+                analogInput.innerHTML = `
+                    <span>${label}</span>
+                    <input type="range" class="analog-slider" id="analog-slider-${i}"
+                           min="0" max="1023" value="0"
+                           oninput="updateAnalog(${i}, this.value)">
+                    <span class="analog-value" id="analog-${i}">0</span>
+                `;
+                analogPanel.appendChild(analogInput);
+            }
+        }
+
+        // Load board configuration
+        function loadBoardConfig() {
+            fetch('/api/board')
+                .then(res => res.json())
+                .then(data => {
+                    // Store board configuration
+                    boardConfig = data;
+
+                    // Update board name in UI
+                    const boardNameElement = document.getElementById('board-name');
+                    if (boardNameElement && data.name) {
+                        boardNameElement.textContent = data.name;
+                    }
+
+                    // Generate dynamic panels
+                    generateLEDPanel();
+                    generateGPIOPanel();
+                    generatePWMPanel();
+                    generateAnalogPanel();
+
+                    // Re-initialize GPIO toggles after generation
+                    initGPIOToggles();
+
+                    addDebugMessage(`[INFO] Board: ${data.name}`);
+                    addDebugMessage(`[INFO] ${data.digital_pins} digital pins, ${data.analog_pins} analog pins`);
+                    addDebugMessage(`[INFO] PWM pins: ${data.pwm_pins.join(', ')}`);
+                })
+                .catch(err => {
+                    console.error('Error loading board config:', err);
+                    addDebugMessage('[ERROR] Failed to load board configuration');
+                });
+        }
+
         // Start auto-refresh on page load
         window.onload = () => {
-            initGPIOToggles();
-            refreshPins();
+            // Load board config first (generates all panels and initializes GPIO toggles)
+            loadBoardConfig();
+
+            // Refresh pins to get initial state
+            setTimeout(() => {
+                refreshPins();
+            }, 100);
+
             addDebugMessage('[SYSTEM] Arduino Emulator ready');
             addDebugMessage(`[INFO] Web refresh rate: ${1000/REFRESH_INTERVAL_MS} Hz (${REFRESH_INTERVAL_MS} ms)`);
             addDebugMessage('[INFO] Only pins configured with pinMode() are enabled');

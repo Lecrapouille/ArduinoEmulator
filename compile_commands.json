@@ -57,6 +57,8 @@
       "-Wbidi-chars=any",
       "-Wopenacc-parallelism",
       "-fPIC",
+      "-I/usr/include/SDL2",
+      "-D_REENTRANT",
       "-O3",
       "-DNDEBUG",
       "-fomit-frame-pointer",
@@ -67,6 +69,7 @@
       "-floop-nest-optimize",
       "-ffunction-sections",
       "-fdata-sections",
+      "-DENABLE_AUDIO",
       "-DCOMPILER_NAME=\"g++\"",
       "-DCOMPILER_VERSION=\"15.2.0\"",
       "-DAPI_LINKAGE=",
@@ -84,11 +87,11 @@
       "-Wno-float-equal",
       "-c",
       "-o",
-      "/home/qq/MyGitHub/ArduinoEmulator/build/release/objs-Linux/Arduino-Emulator/src/WebServer.o",
-      "/home/qq/MyGitHub/ArduinoEmulator/src/WebServer.cpp"
+      "/home/qq/MyGitHub/ArduinoEmulator/build/release/objs-Linux/Arduino-Emulator/src/main.o",
+      "/home/qq/MyGitHub/ArduinoEmulator/src/main.cpp"
     ],
     "directory": "/home/qq/MyGitHub/ArduinoEmulator",
-    "file": "/home/qq/MyGitHub/ArduinoEmulator/src/WebServer.cpp",
-    "output": "/home/qq/MyGitHub/ArduinoEmulator/build/release/objs-Linux/Arduino-Emulator/src/WebServer.o"
+    "file": "/home/qq/MyGitHub/ArduinoEmulator/src/main.cpp",
+    "output": "/home/qq/MyGitHub/ArduinoEmulator/build/release/objs-Linux/Arduino-Emulator/src/main.o"
   }
 ]

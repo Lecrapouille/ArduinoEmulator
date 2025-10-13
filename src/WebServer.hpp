@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "BoardConfig.hpp"
 #include "cpp-httplib/httplib.h"
 
 #include <atomic>
@@ -25,10 +26,12 @@ public:
     //! \param address Server address(i.e."0.0.0.0")
     //! \param port Server port(i.e.8080)
     //! \param refresh_frequency Web interface refresh rate in Hz(i.e.100)
+    //! \param board Board configuration
     // ------------------------------------------------------------------------
     WebServer(std::string const& address,
               uint16_t port,
-              size_t refresh_frequency);
+              size_t refresh_frequency,
+              BoardConfig const& board);
 
     // ------------------------------------------------------------------------
     //! \brief Destructor - ensures proper cleanup.
@@ -84,6 +87,8 @@ private:
                          httplib::Response& res) const;
     void handleGetTick(httplib::Request const& req,
                        httplib::Response& res) const;
+    void handleGetBoard(httplib::Request const& req,
+                        httplib::Response& res) const;
 
     // ------------------------------------------------------------------------
     //! \brief Run Arduino simulation loop.
@@ -115,4 +120,6 @@ private:
     std::thread m_arduino_thread;
     //! \brief Tick counter (incremented after each Arduino loop)
     mutable std::atomic<uint64_t> m_tick_counter{ 0 };
+    //! \brief Board configuration
+    BoardConfig m_board;
 };

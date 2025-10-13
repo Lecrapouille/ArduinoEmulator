@@ -2,7 +2,7 @@
 
 Another Arduino emulator with its web interface for testing your `.ino` files without physical hardware or complex simulator. This tool allows you to test your Arduino code directly from your PC without any hardware setup, featuring an immediate human-machine interface to emulate GPIOs, communication. No complex wiring or physical setup required - just write your code and interact with virtual pins through a simple, direct web interface.
 
-> **Note:** Currently supports Arduino Uno only (20 pins: D0-D13, A0-A5)
+> **Note:** Default board is Arduino Uno (20 pins: D0-D13, A0-A5). Custom board configurations can be loaded via JSON files (see [Board Configuration](doc/board_config.md))
 
 ![web interface](doc/pics/web-interface.png)
 
@@ -47,9 +47,14 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 - **SPI**: Complete SPI bus emulation (begin, transfer, end).
 - 🔄 **I2C**: Coming soon.
 
+### 🎛️ Board Configuration
+
+- **Default Board**: Arduino Uno (20 pins: D0-D13, A0-A5)
+- **Custom Boards**: Load custom board configurations via JSON files (see [Board Configuration](doc/BOARD_CONFIG.md))
+- **Configurable**: Pin count, PWM pins, analog pins, and pin mapping
+
 ### ⚠️ Current Limitations
 
-- 🎯 Only Arduino Uno is supported (20 pins: D0-D13, A0-A5)
 - 🔄 No I2C emulation (coming soon)
 - 💾 No EEPROM support (coming soon)
 - ⏱️ Timer uses system real time (not cycle-accurate)
@@ -91,7 +96,7 @@ You have several examples given in this [repo](https://github.com/arduino/arduin
 From your Linux console, launch the emulator:
 
 ```bash
-./build/Arduino-Emulator
+./build/Arduino-Emulator [OPTIONS]
 ```
 
 A message like this one, shall appear:
@@ -99,10 +104,11 @@ A message like this one, shall appear:
 ```bash
 ========================================
 Arduino Emulator Web Interface
+Board: Arduino Uno
 Server address: 0.0.0.0
 Server port: 8080
-Loop frequency: 100 Hz
-Loop period: 10 ms
+Arduino loop rate: 100 Hz (10 ms)
+Web client poll rate: 200 Hz (5 ms)
 ========================================
 Starting server...
 Server started successfully!
@@ -111,10 +117,20 @@ Press Ctrl+C to stop the server
 ========================================
 ```
 
-See the command line option for more settings: port, address and frequency.
+**Command Line Options:**
 
-Alternatively, people with VSCode or Cursor IDE, can directly launch the debugger and run step by step the code.
-You can modify the [launch](.vscode/launch.json) file.
+- -a, --address arg    Server address (default: 0.0.0.0)
+- -p, --port arg       Server port (default: 8080)
+- -f, --frequency arg  Arduino loop rate in Hz (1-100, default: 100)
+- -b, --board arg      Board configuration JSON file
+
+The `-f` option controls the Arduino `loop()` execution rate (max frequency). The web client will poll at 2x this frequency to capture all state changes. Lower frequencies reduce CPU usage but increase latency.
+
+The `-b` option: Board configurations are given in this [boards](boards) folder.
+
+**VSCode**
+
+Alternatively, people with VSCode or Cursor IDE, can directly launch the debugger and run step by step the code. You can modify the [launch](.vscode/launch.json) file.
 
 ### 4️⃣ Open the web interface
 
@@ -231,6 +247,31 @@ All endpoints are accessible via HTTP:
 
 **Note:** POST requests must include `Content-Length: 0` if they have no body.
 
+### 🎛️ Board Information
+
+- `GET /api/board` - Get board configuration
+
+  Response:
+
+  ```json
+  {
+      "name": "Arduino xxx",
+      "pwm_pins": [ 3 ],
+      "pin_mapping": { "A0": 14 },
+      "analog_only_pins": [ 20 ]
+  }
+  ```
+
+- `GET /api/tick` - Get Arduino loop tick counter (lightweight state change detection).
+
+  Response:
+
+  ```json
+  {"tick": 12345}
+  ```
+
+  This counter increments after each `loop()` execution. The web client uses it to detect when to fetch full pin states, avoiding unnecessary polling.
+
 ### 📌 Pin State
 
 - `GET /api/pins` - Get the state of all pins (0-19)
@@ -240,7 +281,7 @@ All endpoints are accessible via HTTP:
   ```json
   {
     "pins": {
-      "0": {"value": 0, "mode": 0, "pwm_capable": false, "pwm_value": 0},
+      "0": {"value": 0, "mode": 0, "pwm_capable": false, "pwm_value": 0, "configured": true},
       ...
     }
   }
@@ -267,8 +308,10 @@ All endpoints are accessible via HTTP:
   Request:
 
   ```json
-  {"pin": 14, "value": 512}
+  {"pin": 0, "value": 512}
   ```
+
+  Note: `pin` is the analog pin number (0-5 for A0-A5), not the physical pin number.
 
 ### 📡 Serial
 
