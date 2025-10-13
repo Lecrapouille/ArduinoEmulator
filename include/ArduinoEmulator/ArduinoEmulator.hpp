@@ -730,6 +730,18 @@ public:
         {
             pins[p_pin].mode = p_mode;
             pins[p_pin].configured = true;
+
+            // INPUT_PULLUP sets the pin to HIGH by default (pull-up resistor)
+            if (p_mode == INPUT_PULLUP)
+            {
+                pins[p_pin].value = HIGH;
+            }
+            // INPUT_PULLDOWN sets the pin to LOW by default (pull-down
+            // resistor)
+            else if (p_mode == INPUT_PULLDOWN)
+            {
+                pins[p_pin].value = LOW;
+            }
         }
     }
 

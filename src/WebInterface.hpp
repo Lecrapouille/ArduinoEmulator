@@ -663,6 +663,38 @@ inline std::string loadHTMLContent()
                 </div>
             </div>
 
+            <!-- GPIO Controls Panel -->
+            <div class="panel">
+                <h2>📍 GPIO Controls</h2>
+                <div class="gpio-controls">
+                    <!-- Generated dynamically by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Analog Inputs Panel -->
+            <div class="panel">
+                <h2>📊 Analog Inputs</h2>
+                <!-- Generated dynamically by JavaScript -->
+            </div>
+
+            <!-- UART Terminal Panel -->
+            <div class="panel">
+                <h2>📡 UART / Serial</h2>
+                <div class="uart-terminal" id="uart-terminal"></div>
+                <div class="uart-input">
+                    <input type="text" id="serial-input" placeholder="Type message..."
+                           onkeypress="if(event.key==='Enter') sendSerial()">
+                    <button onclick="sendSerial()">Send</button>
+                    <button class="clear" onclick="clearSerial()">Clear</button>
+                </div>
+            </div>
+
+            <!-- PWM Controls Panel -->
+            <div class="panel">
+                <h2>⚡ PWM Controls</h2>
+                <!-- Generated dynamically by JavaScript -->
+            </div>
+
             <!-- LED Panel -->
             <div class="panel">
                 <h2>💡 LED Indicators</h2>
@@ -691,18 +723,6 @@ inline std::string loadHTMLContent()
                 <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
                     <em>LCD functionality can be added via custom Arduino code</em>
                 </p>
-            </div>
-
-            <!-- UART Terminal Panel -->
-            <div class="panel">
-                <h2>📡 UART / Serial</h2>
-                <div class="uart-terminal" id="uart-terminal"></div>
-                <div class="uart-input">
-                    <input type="text" id="serial-input" placeholder="Type message..."
-                           onkeypress="if(event.key==='Enter') sendSerial()">
-                    <button onclick="sendSerial()">Send</button>
-                    <button class="clear" onclick="clearSerial()">Clear</button>
-                </div>
             </div>
 
             <!-- SPI Panel -->
@@ -741,26 +761,6 @@ inline std::string loadHTMLContent()
                 <div class="spi-terminal" id="spi-terminal">
                     <div style="color: #f39c12;">[SPI] Interface ready...</div>
                 </div>
-            </div>
-
-            <!-- GPIO Controls Panel -->
-            <div class="panel">
-                <h2>📍 GPIO Controls</h2>
-                <div class="gpio-controls">
-                    <!-- Generated dynamically by JavaScript -->
-                </div>
-            </div>
-
-            <!-- PWM Controls Panel -->
-            <div class="panel">
-                <h2>⚡ PWM Controls</h2>
-                <!-- Generated dynamically by JavaScript -->
-            </div>
-
-            <!-- Analog Inputs Panel -->
-            <div class="panel">
-                <h2>📊 Analog Inputs</h2>
-                <!-- Generated dynamically by JavaScript -->
             </div>
 
             <!-- Sound Monitor Panel - 1 slot -->
