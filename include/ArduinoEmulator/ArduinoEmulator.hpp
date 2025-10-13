@@ -11,6 +11,9 @@
 
 #pragma once
 
+#include <SFML/Audio.hpp>
+
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -475,6 +478,135 @@ private:
     std::vector<std::chrono::steady_clock::time_point>
         m_last_trigger; ///< Last trigger time for each callback
 };
+
+// ============================================================================
+//! \class ToneGenerator
+//! \brief Generates audio tones using SFML
+//!
+//! This class uses SFML's audio module to generate real audio tones at
+//! specified frequencies. The tone generation uses a square wave, similar
+//! to Arduino's tone() function.
+// ============================================================================
+class ToneGenerator: public sf::SoundStream
+{
+public:
+
+    // ------------------------------------------------------------------------
+    //! \brief Constructor
+    // ------------------------------------------------------------------------
+    ToneGenerator() : m_frequency(0), m_phase(0)
+    {
+        initialize(1, 44100); // Mono, 44.1kHz
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Destructor
+    // ------------------------------------------------------------------------
+    ~ToneGenerator()
+    {
+        stop();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Start playing a tone at the specified frequency
+    //! \param p_frequency Frequency in Hz
+    // ------------------------------------------------------------------------
+    void playTone(int p_frequency)
+    {
+        if (p_frequency <= 0)
+            return;
+
+        m_frequency.store(p_frequency);
+        m_phase = 0;
+        play();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Start playing a tone for a specific duration
+    //! \param p_frequency Frequency in Hz
+    //! \param p_duration Duration in milliseconds
+    // ------------------------------------------------------------------------
+    void playTone(int p_frequency, long p_duration)
+    {
+        playTone(p_frequency);
+        std::this_thread::sleep_for(std::chrono::milliseconds(p_duration));
+        stop();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Stop playing the current tone
+    // ------------------------------------------------------------------------
+    void stopTone()
+    {
+        stop();
+        m_frequency.store(0);
+        m_phase = 0;
+    }
+
+private:
+
+    // ------------------------------------------------------------------------
+    //! \brief Get the next chunk of audio data (SFML callback)
+    //! \param p_data Pointer to audio sample buffer
+    //! \param p_sample_count Number of samples to generate
+    //! \return true to continue playing, false to stop
+    // ------------------------------------------------------------------------
+    bool onGetData(Chunk& p_data) override
+    {
+        const unsigned int sample_count = 4410; // 0.1 second buffer
+        static std::vector<sf::Int16> samples(sample_count);
+
+        int freq = m_frequency.load();
+        if (freq <= 0)
+        {
+            // Silence
+            std::fill(samples.begin(), samples.end(), 0);
+        }
+        else
+        {
+            // Generate square wave
+            const double sample_rate = 44100.0;
+            const double amplitude = 8000.0;
+            const double two_pi = 2.0 * 3.14159265358979323846;
+
+            for (unsigned int i = 0; i < sample_count; ++i)
+            {
+                double time = static_cast<double>(m_phase) / sample_rate;
+                double sine_value = std::sin(two_pi * freq * time);
+
+                // Square wave: sign of sine wave
+                samples[i] = static_cast<sf::Int16>((sine_value > 0 ? 1 : -1) *
+                                                    amplitude);
+
+                m_phase++;
+                if (m_phase >= static_cast<unsigned long>(sample_rate))
+                    m_phase -= static_cast<unsigned long>(sample_rate);
+            }
+        }
+
+        p_data.samples = samples.data();
+        p_data.sampleCount = sample_count;
+        return true; // Continue playing
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Seek to a position in the stream (SFML callback)
+    //! \param p_time_offset Time offset to seek to
+    // ------------------------------------------------------------------------
+    void onSeek(sf::Time p_time_offset) override
+    {
+        m_phase = static_cast<unsigned long>(
+            static_cast<double>(p_time_offset.asSeconds()) * 44100.0);
+    }
+
+private:
+
+    std::atomic<int> m_frequency; ///< Current tone frequency in Hz
+    unsigned long m_phase;        ///< Current phase in the waveform
+};
+
+/// Global tone generator instance
+inline ToneGenerator tone_generator;
 
 // ============================================================================
 //! \class ArduinoEmulator
@@ -1030,12 +1162,13 @@ inline void detachInterrupt(int p_pin)
 //! \param p_pin Pin number
 //! \param p_frequency Frequency in Hz
 //!
-//! In simulation mode, this just sets the pin state.
+//! Generates a square wave tone using SFML audio output.
+//! Also sets the pin to HIGH state.
 // ----------------------------------------------------------------------------
 inline void tone(int p_pin, int p_frequency)
 {
-    (void)p_frequency; // Unused in simulation
     arduino_sim.digitalWrite(p_pin, HIGH);
+    tone_generator.playTone(p_frequency);
 }
 
 // ----------------------------------------------------------------------------
@@ -1044,22 +1177,25 @@ inline void tone(int p_pin, int p_frequency)
 //! \param p_frequency Frequency in Hz
 //! \param p_duration Duration in milliseconds
 //!
-//! In simulation mode, this just sets the pin state temporarily.
+//! Generates a square wave tone for the specified duration using SFML.
+//! Sets the pin HIGH during playback, then LOW after.
 // ----------------------------------------------------------------------------
 inline void tone(int p_pin, int p_frequency, long p_duration)
 {
-    (void)p_frequency; // Unused in simulation
     arduino_sim.digitalWrite(p_pin, HIGH);
-    delay(p_duration);
+    tone_generator.playTone(p_frequency, p_duration);
     arduino_sim.digitalWrite(p_pin, LOW);
 }
 
 // ----------------------------------------------------------------------------
 //! \brief Stop generating a tone on a pin
 //! \param p_pin Pin number
+//!
+//! Stops the currently playing tone and sets the pin to LOW.
 // ----------------------------------------------------------------------------
 inline void noTone(int p_pin)
 {
+    tone_generator.stopTone();
     arduino_sim.digitalWrite(p_pin, LOW);
 }
 
@@ -1150,6 +1286,7 @@ inline int sq(int p_value)
     return p_value * p_value;
 }
 
+#if 0
 // ----------------------------------------------------------------------------
 //! \brief Calculate the square root of a number
 //! \param p_value Input value
@@ -1189,6 +1326,7 @@ inline double tan(double p_angle)
 {
     return std::tan(p_angle);
 }
+#endif
 
 // Character functions
 

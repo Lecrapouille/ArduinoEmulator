@@ -42,6 +42,11 @@ USER_CXXFLAGS += -Wno-old-style-cast -Wno-noexcept -Wno-useless-cast
 USER_CXXFLAGS += -Wno-switch-enum -Wno-float-equal
 
 ###############################################################################
+# Link against SFML library for audio support
+#
+PKG_LIBS += sfml-audio sfml-system
+
+###############################################################################
 # Sharable information between all Makefiles
 #
 include $(M)/rules/Makefile

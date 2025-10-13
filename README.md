@@ -41,6 +41,13 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 - **delay()** and **delayMicroseconds()**: Accurate timing.
 - **Timer callbacks**: Periodic interrupt simulation.
 
+### 🔊 Audio Support
+
+- **tone()**: Generate square wave tones at specified frequencies using SFML audio output.
+- **noTone()**: Stop tone generation.
+- **Real Audio Output**: Actual sound generation through system audio (requires SFML audio library).
+- **Frequency Control**: Supports the full range of audible frequencies.
+
 ### 📡 Communication Protocols
 
 - **Serial (UART)**: Complete Serial bus emulation: Serial.print(), Serial.read(), ... support.
@@ -66,6 +73,17 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 Compile the whole project as described in the next section.
 
 ### 1️⃣ Download, compile and run the web interface
+
+**Prerequisites:**
+
+- C++17 compiler (g++ or clang++)
+- SFML 2.5+ (for audio support)
+
+On Debian/Ubuntu, install SFML:
+
+```bash
+sudo apt-get install libsfml-dev
+```
 
 From your Linux console, type the following lines:
 
@@ -340,5 +358,6 @@ All endpoints are accessible via HTTP:
 - [cpp-httplib](https://github.com/yhirose/cpp-httplib) - HTTP server
 - [nlohmann/json](https://github.com/nlohmann/json) - JSON parser
 - [cxxopts](jarro2783/cxxopts) - CLI parser
+- [SFML](https://github.com/SFML/SFML) - Simple and Fast Multimedia Library
 
 Dependencies are included in the `external/` folder. MyMakefile shall be included when git cloning recursively this project. Other third-parties are downloaded by MyMakefile with the command `make download-external-libs`. They are not installed on the operating system.
