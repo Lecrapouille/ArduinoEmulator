@@ -736,6 +736,13 @@ public:
     // ------------------------------------------------------------------------
     void start()
     {
+        // If a thread is still running, stop it first to avoid std::terminate()
+        if (simulation_thread.joinable())
+        {
+            running = false;
+            simulation_thread.join();
+        }
+
         running = true;
         timer.start();
         simulation_thread = std::thread(&ArduinoEmulator::simulationLoop, this);

@@ -233,6 +233,13 @@ void WebServer::handleStartSimulation(httplib::Request const&,
     }
     else
     {
+        // If a thread is still joinable, join it first to avoid
+        // std::terminate()
+        if (m_arduino_thread.joinable())
+        {
+            m_arduino_thread.join();
+        }
+
         arduino_sim.start();
         m_simulation_running = true;
         m_arduino_thread = std::thread([this]() { runArduinoSimulation(); });
