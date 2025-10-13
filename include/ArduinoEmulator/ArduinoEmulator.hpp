@@ -494,7 +494,7 @@ public:
     // ------------------------------------------------------------------------
     //! \brief Constructor
     // ------------------------------------------------------------------------
-    ToneGenerator() : m_frequency(0), m_phase(0)
+    ToneGenerator()
     {
         initialize(1, 44100); // Mono, 44.1kHz
     }
@@ -510,14 +510,17 @@ public:
     // ------------------------------------------------------------------------
     //! \brief Start playing a tone at the specified frequency
     //! \param p_frequency Frequency in Hz
+    //! \param p_pin Pin number playing the tone
     // ------------------------------------------------------------------------
-    void playTone(int p_frequency)
+    void playTone(int p_frequency, int p_pin = -1)
     {
         if (p_frequency <= 0)
             return;
 
         m_frequency.store(p_frequency);
+        m_current_pin.store(p_pin);
         m_phase = 0;
+        m_is_playing = true;
         play();
     }
 
@@ -525,12 +528,13 @@ public:
     //! \brief Start playing a tone for a specific duration
     //! \param p_frequency Frequency in Hz
     //! \param p_duration Duration in milliseconds
+    //! \param p_pin Pin number playing the tone
     // ------------------------------------------------------------------------
-    void playTone(int p_frequency, long p_duration)
+    void playTone(int p_frequency, long p_duration, int p_pin = -1)
     {
-        playTone(p_frequency);
+        playTone(p_frequency, p_pin);
         std::this_thread::sleep_for(std::chrono::milliseconds(p_duration));
-        stop();
+        stopTone();
     }
 
     // ------------------------------------------------------------------------
@@ -540,7 +544,36 @@ public:
     {
         stop();
         m_frequency.store(0);
+        m_current_pin.store(-1);
         m_phase = 0;
+        m_is_playing = false;
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Get current frequency
+    //! \return Current tone frequency in Hz
+    // ------------------------------------------------------------------------
+    int getFrequency() const
+    {
+        return m_frequency.load();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Get current pin playing tone
+    //! \return Pin number or -1 if none
+    // ------------------------------------------------------------------------
+    int getCurrentPin() const
+    {
+        return m_current_pin.load();
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Check if a tone is currently playing
+    //! \return true if playing, false otherwise
+    // ------------------------------------------------------------------------
+    bool isPlaying() const
+    {
+        return m_is_playing.load();
     }
 
 private:
@@ -601,8 +634,14 @@ private:
 
 private:
 
-    std::atomic<int> m_frequency; ///< Current tone frequency in Hz
-    unsigned long m_phase;        ///< Current phase in the waveform
+    //! \brief Current tone frequency in Hz
+    std::atomic<int> m_frequency{ 0 };
+    //! \brief Current pin playing tone
+    std::atomic<int> m_current_pin{ -1 };
+    //! \brief Current tone playing state
+    std::atomic<bool> m_is_playing{ false };
+    //! \brief Current phase in the waveform
+    unsigned long m_phase{ 0 };
 };
 
 /// Global tone generator instance
@@ -1167,8 +1206,15 @@ inline void detachInterrupt(int p_pin)
 // ----------------------------------------------------------------------------
 inline void tone(int p_pin, int p_frequency)
 {
+    // Auto-configure pin as OUTPUT if not already configured
+    Pin* pin = arduino_sim.getPin(p_pin);
+    if (pin && !pin->configured)
+    {
+        arduino_sim.pinMode(p_pin, OUTPUT);
+    }
+
     arduino_sim.digitalWrite(p_pin, HIGH);
-    tone_generator.playTone(p_frequency);
+    tone_generator.playTone(p_frequency, p_pin);
 }
 
 // ----------------------------------------------------------------------------
@@ -1182,8 +1228,15 @@ inline void tone(int p_pin, int p_frequency)
 // ----------------------------------------------------------------------------
 inline void tone(int p_pin, int p_frequency, long p_duration)
 {
+    // Auto-configure pin as OUTPUT if not already configured
+    Pin* pin = arduino_sim.getPin(p_pin);
+    if (pin && !pin->configured)
+    {
+        arduino_sim.pinMode(p_pin, OUTPUT);
+    }
+
     arduino_sim.digitalWrite(p_pin, HIGH);
-    tone_generator.playTone(p_frequency, p_duration);
+    tone_generator.playTone(p_frequency, p_duration, p_pin);
     arduino_sim.digitalWrite(p_pin, LOW);
 }
 

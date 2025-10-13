@@ -89,6 +89,8 @@ private:
                        httplib::Response& res) const;
     void handleGetBoard(httplib::Request const& req,
                         httplib::Response& res) const;
+    void handleGetAudio(httplib::Request const& req,
+                        httplib::Response& res) const;
 
     // ------------------------------------------------------------------------
     //! \brief Run Arduino simulation loop.

@@ -16,6 +16,7 @@
 
 // ----------------------------------------------------------------------------
 extern ArduinoEmulator arduino_sim;
+extern ToneGenerator tone_generator;
 extern void setup();
 extern void loop();
 
@@ -95,6 +96,11 @@ void WebServer::setupRoutes()
     m_server.Get("/api/board",
                  [this](httplib::Request const& req, httplib::Response& res)
                  { handleGetBoard(req, res); });
+
+    // Audio status
+    m_server.Get("/api/audio",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetAudio(req, res); });
 }
 
 // ----------------------------------------------------------------------------
@@ -483,6 +489,56 @@ void WebServer::handleGetBoard(httplib::Request const&,
     response["analog_input_pins"] = m_board.analog_input_pins;
     response["pin_mapping"] = m_board.pin_mapping;
     response["analog_only_pins"] = m_board.analog_only_pins;
+
+    res.set_content(response.dump(), "application/json");
+}
+
+// ----------------------------------------------------------------------------
+// Helper function to convert frequency to musical note
+static std::string frequencyToNote(int frequency)
+{
+    if (frequency == 0)
+        return "Silent";
+
+    // Note names
+    static const char* notes[] = { "C",  "C#", "D",  "D#", "E",  "F",
+                                   "F#", "G",  "G#", "A",  "A#", "B" };
+
+    // Calculate MIDI note number from frequency
+    // MIDI note = 69 + 12 * log2(freq / 440)
+    double midi =
+        69.0 + 12.0 * std::log2(static_cast<double>(frequency) / 440.0);
+    int midiNote = static_cast<int>(std::round(midi));
+
+    // Get octave and note
+    int octave = (midiNote / 12) - 1;
+    int noteIndex = midiNote % 12;
+
+    return std::string(notes[noteIndex]) + std::to_string(octave) + " (" +
+           std::to_string(frequency) + " Hz)";
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::handleGetAudio(httplib::Request const&,
+                               httplib::Response& res) const
+{
+    nlohmann::json response;
+
+    // Get audio information from tone generator
+    response["playing"] = tone_generator.isPlaying();
+    response["frequency"] = tone_generator.getFrequency();
+    response["pin"] = tone_generator.getCurrentPin();
+
+    // Calculate note name if playing
+    if (tone_generator.isPlaying())
+    {
+        int freq = tone_generator.getFrequency();
+        response["note"] = frequencyToNote(freq);
+    }
+    else
+    {
+        response["note"] = "Silent";
+    }
 
     res.set_content(response.dump(), "application/json");
 }

@@ -248,6 +248,76 @@ inline std::string loadHTMLContent()
             font-size: 0.9rem;
         }
 
+        /* Sound Monitor */
+        .sound-info {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sound-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .sound-indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #bbb;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .sound-indicator.playing {
+            background: #4CAF50;
+            box-shadow: 0 0 20px #4CAF50;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #sound-status-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .sound-details {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sound-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .sound-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .sound-value {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #667eea;
+            font-weight: bold;
+        }
+
         /* Debug Terminal */
         .debug-terminal {
             background: #1e1e1e;
@@ -693,8 +763,33 @@ inline std::string loadHTMLContent()
                 <!-- Generated dynamically by JavaScript -->
             </div>
 
-            <!-- Debug Console Panel - Full Width -->
-            <div class="panel panel-full">
+            <!-- Sound Monitor Panel - 1 slot -->
+            <div class="panel">
+                <h2>🔊 Sound Monitor</h2>
+                <div class="sound-info">
+                    <div class="sound-status">
+                        <div class="sound-indicator" id="sound-indicator"></div>
+                        <span id="sound-status-text">Silent</span>
+                    </div>
+                    <div class="sound-details">
+                        <div class="sound-field">
+                            <span class="sound-label">Pin:</span>
+                            <span class="sound-value" id="sound-pin">-</span>
+                        </div>
+                        <div class="sound-field">
+                            <span class="sound-label">Frequency:</span>
+                            <span class="sound-value" id="sound-frequency">0 Hz</span>
+                        </div>
+                        <div class="sound-field">
+                            <span class="sound-label">Note:</span>
+                            <span class="sound-value" id="sound-note">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug Console Panel - 2 slots -->
+            <div class="panel panel-half">
                 <h2>🐛 Debug Console</h2>
                 <div class="debug-terminal" id="debug-terminal"></div>
                 <div class="uart-input">
@@ -738,13 +833,16 @@ inline std::string loadHTMLContent()
                 .then(data => {
                     const currentTick = data.tick;
 
-                    // Only fetch full data if Arduino loop has executed
+                    // Always refresh audio and pins (tone() changes happen independently of loop())
+                    Promise.all([
+                        refreshAudio(),
+                        refreshPins()
+                    ]);
+
+                    // Also fetch serial if Arduino loop has executed
                     if (currentTick !== lastTick) {
                         lastTick = currentTick;
-                        return Promise.all([
-                            refreshPins(),
-                            refreshSerial()
-                        ]);
+                        refreshSerial();
                     }
                 })
                 .catch(err => {
@@ -1035,6 +1133,37 @@ inline std::string loadHTMLContent()
                             }
                         });
                     }
+                });
+        }
+
+        function refreshAudio() {
+            fetch('/api/audio')
+                .then(res => res.json())
+                .then(data => {
+                    const indicator = document.getElementById('sound-indicator');
+                    const statusText = document.getElementById('sound-status-text');
+                    const pinDisplay = document.getElementById('sound-pin');
+                    const frequencyDisplay = document.getElementById('sound-frequency');
+                    const noteDisplay = document.getElementById('sound-note');
+
+                    if (data.playing) {
+                        indicator.classList.add('playing');
+                        statusText.textContent = 'Playing';
+                        statusText.style.color = '#4CAF50';
+                        pinDisplay.textContent = data.pin >= 0 ? 'D' + data.pin : '-';
+                        frequencyDisplay.textContent = data.frequency + ' Hz';
+                        noteDisplay.textContent = data.note;
+                    } else {
+                        indicator.classList.remove('playing');
+                        statusText.textContent = 'Silent';
+                        statusText.style.color = '#999';
+                        pinDisplay.textContent = '-';
+                        frequencyDisplay.textContent = '0 Hz';
+                        noteDisplay.textContent = '-';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching audio status:', err);
                 });
         }
 
