@@ -1043,9 +1043,10 @@ inline std::string loadHTMLContent()
                         valueDisplay.textContent = pwmValue;
                     }
 
-                    // Update LED visual feedback
+                    // Update LED visual feedback only if PWM is actively used (pwmValue > 0)
+                    // If pwmValue is 0, let updateGPIOToggles handle the LED state based on digital value
                     const led = document.getElementById(`led-${pin}`);
-                    if (led) {
+                    if (led && pwmValue > 0) {
                         const intensity = pwmValue / 255;
                         if (intensity > 0.1) {
                             led.classList.add('on');
