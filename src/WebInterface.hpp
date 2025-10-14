@@ -819,6 +819,36 @@ inline std::string loadHTMLContent()
             analog_only_pins: []
         };
 
+        function clearSerial() {
+            document.getElementById('uart-terminal').innerHTML = '';
+        }
+
+        function clearDebug() {
+            document.getElementById('debug-terminal').innerHTML = '';
+            addDebugMessage('[SYSTEM] Simulation reset');
+        }
+
+        function resetPWMsliders() {
+            boardConfig.pwm_pins.forEach(pin => {
+                pins[pin].pwm_value = 0;
+            });
+            updatePWMSliders(boardConfig.pwm_pins);
+        }
+
+        function resetAnalogInputs() {
+            boardConfig.analog_input_pins.forEach(pin => {
+                const slider = document.getElementById(`analog-slider-${pin}`);
+                const valueDisplay = document.getElementById(`analog-${pin}`);
+                if (slider) {
+                    slider.value = 0;
+                }
+                if (valueDisplay) {
+                    valueDisplay.textContent = '0';
+                }
+            });
+            updateAnalogInputs(boardConfig.analog_input_pins);
+        }
+
         function checkForUpdates() {
             // Skip if previous request is still running
             if (isRefreshing) {
@@ -831,19 +861,11 @@ inline std::string loadHTMLContent()
             fetch('/api/tick')
                 .then(res => res.json())
                 .then(data => {
-                    const currentTick = data.tick;
-
-                    // Always refresh audio and pins (tone() changes happen independently of loop())
-                    Promise.all([
-                        refreshAudio(),
-                        refreshPins()
-                    ]);
-
-                    // Also fetch serial if Arduino loop has executed
-                    if (currentTick !== lastTick) {
-                        lastTick = currentTick;
+                        refreshAudio();
+                        refreshPins();
+                        refreshStatus();
                         refreshSerial();
-                    }
+                        refreshDebugLog();
                 })
                 .catch(err => {
                     console.error('Error checking tick:', err);
@@ -866,17 +888,6 @@ inline std::string loadHTMLContent()
                 clearInterval(autoRefreshInterval);
                 autoRefreshInterval = null;
                 isRefreshing = false;
-            }
-        }
-
-        function updateStatusIndicator(running) {
-            const indicator = document.getElementById('status-indicator');
-            if (running) {
-                indicator.classList.add('running');
-                indicator.classList.remove('stopped');
-            } else {
-                indicator.classList.add('stopped');
-                indicator.classList.remove('running');
             }
         }
 
@@ -916,22 +927,11 @@ inline std::string loadHTMLContent()
             fetch('/api/reset', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    addDebugMessage('[SYSTEM] Simulation reset');
-                    clearSerial();
                     clearDebug();
+                    clearSerial();
+                    resetAnalogInputs();
+                    resetPWMsliders();
                     refreshPins();
-
-                    // Reset all analog sliders to 0
-                    for (let i = 0; i < boardConfig.analog_pins; i++) {
-                        const slider = document.getElementById(`analog-slider-${i}`);
-                        const valueDisplay = document.getElementById(`analog-${i}`);
-                        if (slider) {
-                            slider.value = 0;
-                        }
-                        if (valueDisplay) {
-                            valueDisplay.textContent = '0';
-                        }
-                    }
 
                     // Restart if it was running
                     if (wasRunning) {
@@ -944,20 +944,35 @@ inline std::string loadHTMLContent()
                 });
         }
 
+        function updateStatusIndicator(running) {
+            const indicator = document.getElementById('status-indicator');
+            if (running) {
+                indicator.classList.add('running');
+                indicator.classList.remove('stopped');
+            } else {
+                indicator.classList.add('stopped');
+                indicator.classList.remove('running');
+            }
+        }
+
+        function refreshStatus() {
+            fetch('/api/status')
+                .then(res => res.json())
+                .then(data => {
+                    updateStatusIndicator(data.running);
+                })
+                .catch(err => {
+                    console.error('Error fetching status:', err);
+                });
+        }
+
         function refreshPins() {
             fetch('/api/pins')
                 .then(res => res.json())
                 .then(data => {
-                    // Update visual board
                     updateVisualBoard(data.pins);
-
-                    // Update PWM sliders
-                    updatePWMSliders(data.pins);
-
-                    // Update GPIO toggles
                     updateGPIOToggles(data.pins);
-
-                    // Update Analog input sliders
+                    updatePWMSliders(data.pins);
                     updateAnalogInputs(data.pins);
                 });
         }
@@ -966,6 +981,7 @@ inline std::string loadHTMLContent()
             let digitalHtml = '';
             let analogHtml = '';
 
+            // Digital pins
             for (let i = 0; i < boardConfig.digital_pins; i++) {
                 if (pins[i]) {
                     const p = pins[i];
@@ -988,6 +1004,7 @@ inline std::string loadHTMLContent()
                 }
             }
 
+            // Analog pins
             boardConfig.analog_input_pins.forEach((pinIndex, i) => {
                 if (pins[pinIndex]) {
                     const p = pins[pinIndex];
@@ -1049,7 +1066,7 @@ inline std::string loadHTMLContent()
                     const gpioItem = document.querySelector(`[data-pin="${i}"]`);
                     const led = document.getElementById(`led-${i}`);
                     const pinValue = pins[i].value;
-                    const pinMode = pins[i].mode; // 0=INPUT, 1=OUTPUT, 2=INPUT_PULLUP
+                    const pinMode = pins[i].mode; // 0=INPUT, 1=OUTPUT, 2=INPUT_PULLUP, 3=INPUT_PULLDOWN, 4=OUTPUT_OPEN_DRAIN
                     const pwmValue = pins[i].pwm_value || 0;
                     const configured = pins[i].configured || false;
                     const isPWMPin = boardConfig.pwm_pins.includes(i);
@@ -1061,13 +1078,13 @@ inline std::string loadHTMLContent()
                             toggle.classList.add('disabled');
                             gpioItem.classList.add('disabled');
                             toggle.dataset.disabled = 'true';
-                        } else if (pinMode === 1) {
-                            // OUTPUT mode - Arduino controls it, disable user control
+                        } else if (pinMode === 1 || pinMode === 4) {
+                            // OUTPUT or OUTPUT_OPEN_DRAIN mode - Arduino controls it, disable user control
                             toggle.classList.add('disabled');
                             gpioItem.classList.add('disabled');
                             toggle.dataset.disabled = 'true';
                         } else {
-                            // INPUT or INPUT_PULLUP configured - enable user control to simulate sensors/buttons
+                            // INPUT or INPUT_PULLUP or INPUT_PULLDOWN mode - enable user control to simulate sensors/buttons
                             toggle.classList.remove('disabled');
                             gpioItem.classList.remove('disabled');
                             toggle.dataset.disabled = 'false';
@@ -1136,6 +1153,21 @@ inline std::string loadHTMLContent()
                 });
         }
 
+        function refreshDebugLog() {
+            fetch('/api/debug')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.messages && data.messages.length > 0) {
+                        data.messages.forEach(message => {
+                            addDebugMessage(message);
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching debug log:', err);
+                });
+        }
+
         function refreshAudio() {
             fetch('/api/audio')
                 .then(res => res.json())
@@ -1174,23 +1206,6 @@ inline std::string loadHTMLContent()
             div.textContent = `[${timestamp}] ${message}`;
             terminal.appendChild(div);
             terminal.scrollTop = terminal.scrollHeight;
-        }
-
-        function addDebugMessage(message) {
-            const terminal = document.getElementById('debug-terminal');
-            const timestamp = new Date().toLocaleTimeString();
-            const div = document.createElement('div');
-            div.textContent = `[${timestamp}] ${message}`;
-            terminal.appendChild(div);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-
-        function clearSerial() {
-            document.getElementById('uart-terminal').innerHTML = '';
-        }
-
-        function clearDebug() {
-            document.getElementById('debug-terminal').innerHTML = '';
         }
 
         function sendSerial() {
@@ -1408,14 +1423,24 @@ inline std::string loadHTMLContent()
                 });
         }
 
+        function addDebugMessage(message) {
+            const terminal = document.getElementById('debug-terminal');
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.textContent = `[${timestamp}] ${message}`;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
         // Start auto-refresh on page load
         window.onload = () => {
             // Load board config first (generates all panels and initializes GPIO toggles)
             loadBoardConfig();
 
-            // Refresh pins to get initial state
+            // Refresh pins and status to get initial state
             setTimeout(() => {
                 refreshPins();
+                refreshStatus(); // Ensure status indicator is red on start
             }, 100);
 
             addDebugMessage('[SYSTEM] Arduino Emulator ready');

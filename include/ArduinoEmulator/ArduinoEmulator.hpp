@@ -118,17 +118,18 @@ public:
     // ------------------------------------------------------------------------
     void analogWrite(int p_val)
     {
-        if (pwm_capable)
+        if (!pwm_capable)
+            return;
+
+        // Auto-configure as OUTPUT (like real Arduino does)
+        if (mode != OUTPUT)
         {
-            // Auto-configure as OUTPUT (like real Arduino does)
-            if (mode != OUTPUT)
-            {
-                mode = OUTPUT;
-                configured = true;
-            }
-            pwm_value = p_val;
-            value = (p_val > 127) ? HIGH : LOW;
+            mode = OUTPUT;
+            configured = true;
         }
+
+        pwm_value = p_val;
+        value = (p_val > 127) ? HIGH : LOW;
     }
 
     // ------------------------------------------------------------------------
@@ -763,6 +764,55 @@ public:
     }
 
     // ------------------------------------------------------------------------
+    //! \brief Reset the Arduino emulator to initial state
+    //!
+    //! Resets all pins, clears serial buffers, resets timer, and stops audio.
+    //! This is equivalent to pressing the reset button on a real Arduino.
+    // ------------------------------------------------------------------------
+    void reset()
+    {
+        // Stop the simulation if running
+        stop();
+
+        // Reset all pins to default state
+        for (auto& [pin_num, pin] : pins)
+        {
+            pin.value = LOW;
+            pin.mode = INPUT;
+            pin.pwm_value = 0;
+            pin.analog_value = 0;
+            pin.configured = false;
+            pin.interrupt_callback = nullptr;
+            pin.interrupt_mode = 0;
+            pin.last_value = LOW;
+        }
+
+        // Stop all tones
+        tone_generator.stopTone();
+
+        // Reset analog reference
+        analog_reference = DEFAULT;
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Check if the simulation is running
+    //! \return true if simulation is running
+    // ------------------------------------------------------------------------
+    bool isRunning() const
+    {
+        return running;
+    }
+
+    // ------------------------------------------------------------------------
+    //! \brief Set the running state
+    //! \param p_running New running state
+    // ------------------------------------------------------------------------
+    void setRunning(bool p_running)
+    {
+        running = p_running;
+    }
+
+    // ------------------------------------------------------------------------
     //! \brief Configure a pin's mode
     //! \param p_pin Pin number (0-19)
     //! \param p_mode Pin mode (INPUT, OUTPUT, or INPUT_PULLUP)
@@ -1271,7 +1321,7 @@ inline void detachInterrupt(int p_pin)
 inline void tone(int p_pin, int p_frequency)
 {
     // Auto-configure pin as OUTPUT if not already configured
-    Pin* pin = arduino_sim.getPin(p_pin);
+    Pin const* pin = arduino_sim.getPin(p_pin);
     if (pin && !pin->configured)
     {
         arduino_sim.pinMode(p_pin, OUTPUT);
@@ -1293,7 +1343,7 @@ inline void tone(int p_pin, int p_frequency)
 inline void tone(int p_pin, int p_frequency, long p_duration)
 {
     // Auto-configure pin as OUTPUT if not already configured
-    Pin* pin = arduino_sim.getPin(p_pin);
+    Pin const* pin = arduino_sim.getPin(p_pin);
     if (pin && !pin->configured)
     {
         arduino_sim.pinMode(p_pin, OUTPUT);
@@ -1317,16 +1367,6 @@ inline void noTone(int p_pin)
 }
 
 // Math functions
-
-// ----------------------------------------------------------------------------
-//! \brief Calculate absolute value
-//! \param p_value Input value
-//! \return Absolute value
-// ----------------------------------------------------------------------------
-inline int abs(int p_value)
-{
-    return std::abs(p_value);
-}
 
 // ----------------------------------------------------------------------------
 //! \brief Constrain a value within a range
@@ -1383,17 +1423,6 @@ inline int min(int p_val1, int p_val2)
 }
 
 // ----------------------------------------------------------------------------
-//! \brief Raise a base to a power
-//! \param p_base Base value
-//! \param p_exponent Exponent value
-//! \return Result of base^exponent
-// ----------------------------------------------------------------------------
-inline double pow(double p_base, double p_exponent)
-{
-    return std::pow(p_base, p_exponent);
-}
-
-// ----------------------------------------------------------------------------
 //! \brief Calculate the square of a number
 //! \param p_value Input value
 //! \return Square of the value
@@ -1402,48 +1431,6 @@ inline int sq(int p_value)
 {
     return p_value * p_value;
 }
-
-#if 0
-// ----------------------------------------------------------------------------
-//! \brief Calculate the square root of a number
-//! \param p_value Input value
-//! \return Square root of the value
-// ----------------------------------------------------------------------------
-inline double sqrt(double p_value)
-{
-    return std::sqrt(p_value);
-}
-
-// ----------------------------------------------------------------------------
-//! \brief Calculate the cosine of an angle
-//! \param p_angle Angle in radians
-//! \return Cosine of the angle
-// ----------------------------------------------------------------------------
-inline double cos(double p_angle)
-{
-    return std::cos(p_angle);
-}
-
-// ----------------------------------------------------------------------------
-//! \brief Calculate the sine of an angle
-//! \param p_angle Angle in radians
-//! \return Sine of the angle
-// ----------------------------------------------------------------------------
-inline double sin(double p_angle)
-{
-    return std::sin(p_angle);
-}
-
-// ----------------------------------------------------------------------------
-//! \brief Calculate the tangent of an angle
-//! \param p_angle Angle in radians
-//! \return Tangent of the angle
-// ----------------------------------------------------------------------------
-inline double tan(double p_angle)
-{
-    return std::tan(p_angle);
-}
-#endif
 
 // Character functions
 
@@ -1888,7 +1875,7 @@ public:
     //! \brief Check if Serial is ready (for compatibility with Leonardo, etc.)
     //! \return Always true in the emulator
     // ------------------------------------------------------------------------
-    operator bool() const
+    explicit operator bool() const
     {
         return true;
     }

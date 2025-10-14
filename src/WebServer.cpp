@@ -13,6 +13,8 @@
 #include "nlohmann/json.hpp"
 
 #include <chrono>
+#include <ctime>
+#include <iostream>
 
 // ----------------------------------------------------------------------------
 extern ArduinoEmulator arduino_sim;
@@ -21,20 +23,7 @@ extern void setup();
 extern void loop();
 
 // ----------------------------------------------------------------------------
-WebServer::WebServer(std::string const& address,
-                     uint16_t port,
-                     size_t refresh_frequency,
-                     BoardConfig const& board)
-    : m_address(address),
-      m_port(port),
-      m_refresh_frequency(refresh_frequency),
-      m_board(board)
-{
-    if (m_refresh_frequency < 1)
-        m_refresh_frequency = 1;
-    if (m_refresh_frequency > 100)
-        m_refresh_frequency = 100;
-}
+WebServer::WebServer(Config const& p_config) : m_config(p_config) {}
 
 // ----------------------------------------------------------------------------
 WebServer::~WebServer()
@@ -50,7 +39,12 @@ void WebServer::setupRoutes()
                  [this](httplib::Request const& req, httplib::Response& res)
                  { handleHomePage(req, res); });
 
-    // Start, stop, reset simulation
+    // Arduino board configuration
+    m_server.Get("/api/board",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetBoard(req, res); });
+
+    // Simulation: Start, stop, reset, status and tick counter
     m_server.Post("/api/start",
                   [this](httplib::Request const& req, httplib::Response& res)
                   { handleStartSimulation(req, res); });
@@ -60,6 +54,15 @@ void WebServer::setupRoutes()
     m_server.Post("/api/reset",
                   [this](httplib::Request const& req, httplib::Response& res)
                   { handleResetSimulation(req, res); });
+    m_server.Get("/api/tick",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetTick(req, res); });
+    m_server.Get("/api/status",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetStatus(req, res); });
+    m_server.Get("/api/debug",
+                 [this](httplib::Request const& req, httplib::Response& res)
+                 { handleGetDebugLog(req, res); });
 
     // Digital pins
     m_server.Get("/api/pins",
@@ -87,16 +90,6 @@ void WebServer::setupRoutes()
                   [this](httplib::Request const& req, httplib::Response& res)
                   { handleSerialInput(req, res); });
 
-    // Tick counter (lightweight check for changes)
-    m_server.Get("/api/tick",
-                 [this](httplib::Request const& req, httplib::Response& res)
-                 { handleGetTick(req, res); });
-
-    // Board configuration
-    m_server.Get("/api/board",
-                 [this](httplib::Request const& req, httplib::Response& res)
-                 { handleGetBoard(req, res); });
-
     // Audio status
     m_server.Get("/api/audio",
                  [this](httplib::Request const& req, httplib::Response& res)
@@ -104,24 +97,29 @@ void WebServer::setupRoutes()
 }
 
 // ----------------------------------------------------------------------------
-void WebServer::runArduinoSimulation() const
+void WebServer::runArduinoSimulation()
 {
+    // Start the timer (but not the internal thread)
+    arduino_sim.getTimer().start();
+
     // Call Arduino setup
     setup();
 
     // Calculate target loop period based on refresh frequency
     // For example: 10 Hz -> 100ms per loop
     const auto loop_period =
-        std::chrono::microseconds(1000000 / m_refresh_frequency);
+        std::chrono::microseconds(1000000 / m_config.frequency);
 
     auto next_loop_time = std::chrono::steady_clock::now();
 
-    while (m_simulation_running)
+    // Use arduino_sim's running flag to control the loop
+    while (arduino_sim.isRunning())
     {
         // Call Arduino loop
         loop();
 
-        // Increment tick counter to notify clients of potential changes
+        // Increment tick counter to notify clients of potential changes.
+        // Watchdog thread monitors this to detect infinite loops.
         m_tick_counter++;
 
         // Schedule next loop at fixed interval from previous target time
@@ -145,14 +143,81 @@ void WebServer::runArduinoSimulation() const
 // ----------------------------------------------------------------------------
 void WebServer::stopArduinoSimulation()
 {
-    if (m_simulation_running)
+    if (!arduino_sim.isRunning())
     {
-        m_simulation_running = false;
-        if (m_arduino_thread.joinable())
+        return;
+    }
+
+    // Signal threads to stop
+    arduino_sim.setRunning(false);
+    m_watchdog_should_stop = true;
+
+    // Wait for threads to finish
+    if (m_watchdog_thread.joinable())
+    {
+        m_watchdog_thread.join();
+    }
+
+    if (m_arduino_thread.joinable())
+    {
+        m_arduino_thread.join();
+    }
+
+    // Reset timer
+    arduino_sim.getTimer().stop();
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::watchdogThread()
+{
+    const int freeze_timeout_seconds = 5;
+
+    uint64_t last_tick = m_tick_counter.load();
+    int frozen_seconds = 0;
+
+    while (!m_watchdog_should_stop && arduino_sim.isRunning())
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        uint64_t current_tick = m_tick_counter.load();
+        if (current_tick == last_tick)
         {
-            m_arduino_thread.join();
+            // Tick hasn't changed - loop() might be frozen
+            frozen_seconds++;
+
+            if (frozen_seconds >= freeze_timeout_seconds)
+            {
+                // Infinite loop detected!
+                std::cerr << "ERROR: Infinite loop detected in loop() "
+                             "function! Stopping simulation..."
+                          << std::endl;
+
+                // Add debug message for the web interface
+                addDebugLog(
+                    "[ERROR] Infinite loop detected in loop() function! "
+                    "Simulation stopped.");
+
+                // Stop the simulation
+                arduino_sim.setRunning(false);
+                m_watchdog_should_stop = true;
+
+                // Detach the frozen Arduino thread (it won't terminate by
+                // itself)
+                if (m_arduino_thread.joinable())
+                {
+                    m_arduino_thread.detach();
+                }
+
+                // Exit watchdog
+                return;
+            }
         }
-        arduino_sim.stop();
+        else
+        {
+            // Tick is progressing normally
+            frozen_seconds = 0;
+            last_tick = current_tick;
+        }
     }
 }
 
@@ -172,7 +237,7 @@ bool WebServer::start()
         [this]()
         {
             m_server_running = true;
-            m_server.listen(m_address.c_str(), m_port);
+            m_server.listen(m_config.address, m_config.port);
             m_server_running = false;
         });
 
@@ -203,12 +268,13 @@ void WebServer::stop()
 void WebServer::handleHomePage(httplib::Request const&,
                                httplib::Response& res) const
 {
+    // Load HTML content stored in the hpp file
     std::string html = webinterface::loadHTMLContent();
 
     // Inject refresh rate into HTML (convert Hz to milliseconds)
     // Client should poll at least 2x faster than Arduino loop (Nyquist theorem)
     // to avoid missing state changes
-    size_t refresh_ms = 1000 / (2 * m_refresh_frequency);
+    size_t refresh_ms = 1000 / (2 * m_config.frequency);
     std::string refresh_placeholder = "##REFRESH_INTERVAL##";
     size_t pos = html.find(refresh_placeholder);
     if (pos != std::string::npos)
@@ -226,28 +292,36 @@ void WebServer::handleStartSimulation(httplib::Request const&,
 {
     nlohmann::json response;
 
-    if (m_simulation_running)
+    // If simulation is already running, return an error
+    if (arduino_sim.isRunning())
     {
         response["status"] = "error";
         response["message"] = "Simulation is already running";
+        res.set_content(response.dump(), "application/json");
+        return;
     }
-    else
+
+    // Clean up any existing threads
+    if (m_arduino_thread.joinable())
     {
-        // If a thread is still joinable, join it first to avoid
-        // std::terminate()
-        if (m_arduino_thread.joinable())
-        {
-            m_arduino_thread.join();
-        }
-
-        arduino_sim.start();
-        m_simulation_running = true;
-        m_arduino_thread = std::thread([this]() { runArduinoSimulation(); });
-
-        response["status"] = "success";
-        response["message"] = "Simulation started";
+        m_arduino_thread.join();
     }
 
+    if (m_watchdog_thread.joinable())
+    {
+        m_watchdog_thread.join();
+    }
+
+    // Start Arduino simulation and watchdog thread
+    arduino_sim.setRunning(true);
+    m_watchdog_should_stop = false;
+    m_tick_counter = 0;
+
+    m_arduino_thread = std::thread([this]() { runArduinoSimulation(); });
+    m_watchdog_thread = std::thread([this]() { watchdogThread(); });
+
+    response["status"] = "success";
+    response["message"] = "Simulation started";
     res.set_content(response.dump(), "application/json");
 }
 
@@ -257,7 +331,7 @@ void WebServer::handleStopSimulation(httplib::Request const&,
 {
     nlohmann::json response;
 
-    if (!m_simulation_running)
+    if (!arduino_sim.isRunning())
     {
         response["status"] = "error";
         response["message"] = "Simulation is not running";
@@ -279,6 +353,7 @@ void WebServer::handleResetSimulation(httplib::Request const&,
     nlohmann::json response;
 
     stopArduinoSimulation();
+    arduino_sim.reset();
 
     response["status"] = "success";
     response["message"] = "Simulation reset";
@@ -293,9 +368,9 @@ void WebServer::handleGetPins(httplib::Request const&,
     nlohmann::json pins_data;
 
     // Retrieve state of all pins (0-19)
-    for (int i = 0; i < 20; i++)
+    for (size_t i = 0; i < m_config.board.total_pins; i++)
     {
-        Pin* pin = arduino_sim.getPin(i);
+        Pin const* pin = arduino_sim.getPin(int(i));
         if (pin)
         {
             nlohmann::json pin_data;
@@ -327,7 +402,7 @@ void WebServer::handleSetPin(httplib::Request const& req,
         // Handle toggle case (value = -1)
         if (value == -1)
         {
-            Pin* p = arduino_sim.getPin(pin);
+            Pin const* p = arduino_sim.getPin(pin);
             if (p)
             {
                 // Toggle: flip the current value
@@ -487,15 +562,14 @@ void WebServer::handleGetBoard(httplib::Request const&,
 {
     nlohmann::json response;
 
-    // Board information from configuration
-    response["name"] = m_board.name;
-    response["total_pins"] = m_board.total_pins;
-    response["digital_pins"] = m_board.digital_pins;
-    response["analog_pins"] = m_board.analog_pins;
-    response["pwm_pins"] = m_board.pwm_pins;
-    response["analog_input_pins"] = m_board.analog_input_pins;
-    response["pin_mapping"] = m_board.pin_mapping;
-    response["analog_only_pins"] = m_board.analog_only_pins;
+    response["name"] = m_config.board.name;
+    response["total_pins"] = m_config.board.total_pins;
+    response["digital_pins"] = m_config.board.digital_pins;
+    response["analog_pins"] = m_config.board.analog_pins;
+    response["pwm_pins"] = m_config.board.pwm_pins;
+    response["analog_input_pins"] = m_config.board.analog_input_pins;
+    response["pin_mapping"] = m_config.board.pin_mapping;
+    response["analog_only_pins"] = m_config.board.analog_only_pins;
 
     res.set_content(response.dump(), "application/json");
 }
@@ -507,21 +581,20 @@ static std::string frequencyToNote(int frequency)
     if (frequency == 0)
         return "Silent";
 
-    // Note names
-    static const char* notes[] = { "C",  "C#", "D",  "D#", "E",  "F",
-                                   "F#", "G",  "G#", "A",  "A#", "B" };
+    static std::array<const char*, 12> notes = { "C",  "C#", "D",  "D#",
+                                                 "E",  "F",  "F#", "G",
+                                                 "G#", "A",  "A#", "B" };
 
     // Calculate MIDI note number from frequency
     // MIDI note = 69 + 12 * log2(freq / 440)
-    double midi =
-        69.0 + 12.0 * std::log2(static_cast<double>(frequency) / 440.0);
-    int midiNote = static_cast<int>(std::round(midi));
+    auto note =
+        size_t(std::round(69.0 + 12.0 * std::log2(double(frequency) / 440.0)));
 
     // Get octave and note
-    int octave = (midiNote / 12) - 1;
-    int noteIndex = midiNote % 12;
+    size_t octave = (note / 12) - 1;
+    size_t index = note % 12;
 
-    return std::string(notes[noteIndex]) + std::to_string(octave) + " (" +
+    return std::string(notes[index]) + std::to_string(octave) + " (" +
            std::to_string(frequency) + " Hz)";
 }
 
@@ -548,4 +621,78 @@ void WebServer::handleGetAudio(httplib::Request const&,
     }
 
     res.set_content(response.dump(), "application/json");
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::handleGetStatus(httplib::Request const&,
+                                httplib::Response& res) const
+{
+    nlohmann::json response;
+    response["running"] = arduino_sim.isRunning();
+    res.set_content(response.dump(), "application/json");
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::handleGetDebugLog(httplib::Request const&,
+                                  httplib::Response& res)
+{
+    nlohmann::json response;
+    std::vector<std::string> messages;
+
+    {
+        std::scoped_lock lock(m_debug_log_mutex);
+        while (!m_debug_log.empty())
+        {
+            messages.push_back(m_debug_log.front());
+            m_debug_log.pop();
+        }
+    }
+
+    response["messages"] = messages;
+    res.set_content(response.dump(), "application/json");
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::addDebugLog(const std::string& message)
+{
+    std::scoped_lock lock(m_debug_log_mutex);
+    m_debug_log.push(message);
+}
+
+// ----------------------------------------------------------------------------
+void WebServer::restartArduinoSimulation()
+{
+    // The Arduino thread is stuck in an infinite loop in user's loop() function
+    // We can't join it because it won't terminate, so we detach it
+    if (m_arduino_thread.joinable())
+    {
+        m_arduino_thread.detach();
+    }
+
+    // The watchdog thread (this thread) is also joinable and needs to be
+    // detached before we can assign a new thread to m_watchdog_thread
+    if (m_watchdog_thread.joinable())
+    {
+        m_watchdog_thread.detach();
+    }
+
+    // Clear serial buffers
+    arduino_sim.getSerial().begin(9600);
+
+    // Stop any audio
+    tone_generator.stopTone();
+
+    // Reset tick counter
+    m_tick_counter = 0;
+
+    // Create new simulation threads
+    // Note: we don't reset pins - setup() will reconfigure them
+    arduino_sim.setRunning(true);
+    m_watchdog_should_stop = false;
+
+    m_arduino_thread = std::thread([this]() { runArduinoSimulation(); });
+    m_watchdog_thread = std::thread([this]() { watchdogThread(); });
+
+    // Important: this function returns and the OLD watchdog thread will exit
+    // The NEW watchdog thread is now running independently
 }

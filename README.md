@@ -29,6 +29,7 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 ### 🔧 Hardware Emulation
 
 - **Arduino Lifecycle**: emulates the Arduino execution by calling `setup()` once at initialization, then repeatedly executing `loop()` at configurable frequency.
+- **Detection of infinite loops**: after 5 seconds of inactivity from the `loop()` a watchdog halts and restore the simulation.
 - **Digital I/O**: Complete `digitalWrite()`, `digitalRead()` support.
 - **Analog I/O**: Full `analogWrite()` (PWM) and `analogRead()` (ADC 10-bit) emulation.
 - **Pin Modes**: INPUT, OUTPUT, INPUT_PULLUP, INPUT_PULLDOWN, OUTPUT_OPEN_DRAIN with `pinMode()`.
@@ -50,9 +51,9 @@ Another Arduino emulator with its web interface for testing your `.ino` files wi
 
 ### 📡 Communication Protocols
 
-- **Serial (UART)**: Complete Serial bus emulation: Serial.print(), Serial.read(), ... support.
-- **SPI**: Complete SPI bus emulation (begin, transfer, end).
-- 🔄 **I2C**: Coming soon.
+- **Serial**: Complete UART bus emulation: Serial.print(), Serial.read(), ... support.
+- **SPI**: Complete SPI bus emulation (begin, transfer, end). HMI coming soon
+- **I2C**: Arduino and HMI Coming soon.
 
 ### 🎛️ Board Configuration
 
